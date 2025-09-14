@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 export interface IMonitorStats extends mongoose.Document {
   monitorId: mongoose.Types.ObjectId;
   avgResponseTime: number;
+  maxResponseTime: number;
   totalChecks: number;
   totalUpChecks: number;
   totalDownChecks: number;
@@ -23,42 +24,38 @@ const MonitorStatsSchema = new Schema<IMonitorStats>(
       index: true,
     },
     avgResponseTime: {
-      //
+      type: Number,
+      default: 0,
+    },
+    maxResponseTime: {
       type: Number,
       default: 0,
     },
     lastResponseTime: {
-      //
       type: Number,
       default: 0,
     },
     totalChecks: {
-      //
       type: Number,
       default: 0,
     },
     totalUpChecks: {
-      //
       type: Number,
       default: 0,
     },
     totalDownChecks: {
-      //
       type: Number,
       default: 0,
     },
     uptimePercentage: {
-      //
       type: Number,
       default: 0,
     },
     lastCheckTimestamp: {
-      //
       type: Number,
       default: 0,
     },
     timeOfLastFailure: {
-      //
       type: Number,
       default: 0,
     },

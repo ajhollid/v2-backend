@@ -71,7 +71,8 @@ class MonitorService {
 
   async getEmbedChecks(
     monitorId: string,
-    range: string
+    range: string,
+    status: string | undefined
   ): Promise<MonitorWithChecksResponse> {
     const monitor = await Monitor.findById(monitorId);
     if (!monitor) {
@@ -79,11 +80,13 @@ class MonitorService {
     }
     const now = new Date();
     let startDate: Date;
+
     let groupClause: groupClauseType = {
       _id: { $dateToString: { format: "", date: "$createdAt" } },
       count: { $sum: 1 },
       avgResponseTime: { $avg: "$responseTime" },
     };
+
     switch (range) {
       case "30m":
         startDate = new Date(now.getTime() - 30 * 60 * 1000);
@@ -105,9 +108,24 @@ class MonitorService {
         throw new ApiError("Invalid range parameter", 400);
     }
 
-    // Find checks for monitor using aggregation
+    // Build match stage
+    const matchStage: {
+      monitorId: mongoose.Types.ObjectId;
+      createdAt: { $gte: Date };
+      status?: string;
+    } = {
+      monitorId: monitor._id,
+      createdAt: { $gte: startDate },
+    };
+
+    if (status) {
+      matchStage.status = status;
+    }
+
     const checks = await Check.aggregate([
-      { $match: { monitorId: monitor._id, createdAt: { $gte: startDate } } },
+      {
+        $match: matchStage,
+      },
       { $project: { status: 1, responseTime: 1, createdAt: 1 } },
       { $group: groupClause },
       { $sort: { _id: -1 } },

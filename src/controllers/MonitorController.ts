@@ -42,8 +42,14 @@ class MonitorController {
         throw new ApiError("Range query parameter is required", 400);
 
       let monitor;
+
+      const status = req.query.status;
+      if (status && typeof status !== "string") {
+        throw new ApiError("Status query parameter must be a string", 400);
+      }
+
       if (req.query.embedChecks === "true") {
-        monitor = await this.monitorService.getEmbedChecks(id, range);
+        monitor = await this.monitorService.getEmbedChecks(id, range, status);
       } else {
         monitor = await this.monitorService.get(id);
       }

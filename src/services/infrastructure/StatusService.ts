@@ -81,8 +81,6 @@ class StatusService implements IStatusService {
     return avgResponseTime;
   };
 
-  calculateUptimePercentage = (stats: IMonitorStats): number => {};
-
   updateMonitorStats = async (
     monitor: IMonitor,
     statusResponse: StatusResponse
@@ -111,6 +109,10 @@ class StatusService implements IStatusService {
 
     // Other
     stats.lastResponseTime = statusResponse.responseTime;
+    stats.maxResponseTime = Math.max(
+      stats.maxResponseTime,
+      statusResponse.responseTime
+    );
 
     return await stats.save();
   };
