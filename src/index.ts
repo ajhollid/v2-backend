@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { connectDatabase, disconnectDatabase } from "./db/index.js";
 import CheckService from "./services/business/CheckService.js";
+import MonitorStatsService from "./services/business/MonitorStatsService.js";
 import NetworkService from "./services/infrastructure/NetworkService.js";
 import StatusService from "./services/infrastructure/StatusService.js";
 import JobQueue, { IJobQueue } from "./services/infrastructure/JobQueue.js";
@@ -15,10 +16,12 @@ const startServer = async () => {
   await connectDatabase();
   const networkService = new NetworkService(got);
   const checkService = new CheckService();
+  const monitorStatsService = new MonitorStatsService();
   const statusService = new StatusService();
   const jobGenerator = new JobGenerator(
     networkService,
     checkService,
+    monitorStatsService,
     statusService
   );
   jobQueue = await JobQueue.create(jobGenerator);

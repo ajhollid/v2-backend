@@ -26,7 +26,28 @@ export interface MonitorWithChecksResponse {
   stats: IMonitorStats;
 }
 
-class MonitorService {
+export interface IMonitorService {
+  create: (
+    tokenizedUser: ITokenizedUser,
+    monitorData: IMonitor
+  ) => Promise<IMonitor>;
+  getAll: () => Promise<IMonitor[]>;
+  getAllEmbedChecks: (page: number, limit: number) => Promise<any[]>;
+  get: (monitorId: string) => Promise<IMonitor | null>;
+  getEmbedChecks: (
+    monitorId: string,
+    range: string,
+    status?: string
+  ) => Promise<MonitorWithChecksResponse>;
+  update: (
+    tokenizedUser: ITokenizedUser,
+    monitorId: string,
+    updateData: Partial<IMonitor>
+  ) => Promise<IMonitor | null>;
+  delete: (monitorId: string) => Promise<void>;
+}
+
+class MonitorService implements IMonitorService {
   private jobQueue: IJobQueue;
   constructor(jobQueue: IJobQueue) {
     this.jobQueue = jobQueue;

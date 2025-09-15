@@ -1,6 +1,7 @@
 import { IMonitor } from "../../db/models/index.js";
 import { INetworkService } from "./NetworkService.js";
 import { ICheckService } from "../business/CheckService.js";
+import { IMonitorStatsService } from "../business/MonitorStatsService.js";
 import { IStatusService } from "./StatusService.js";
 import ApiError from "../../utils/ApiError.js";
 
@@ -12,15 +13,18 @@ export interface IJobGenerator {
 class JobGenerator implements IJobGenerator {
   private networkService: INetworkService;
   private checkService: ICheckService;
+  private monitorStatsService: IMonitorStatsService;
   private statusService: IStatusService;
 
   constructor(
     networkService: INetworkService,
     checkService: ICheckService,
+    monitorStatsService: IMonitorStatsService,
     statusService: IStatusService
   ) {
     this.networkService = networkService;
     this.checkService = checkService;
+    this.monitorStatsService = monitorStatsService;
     this.statusService = statusService;
   }
 
@@ -53,6 +57,7 @@ class JobGenerator implements IJobGenerator {
     return async () => {
       try {
         await this.checkService.cleanupOrphanedChecks();
+        await this.monitorStatsService.cleanupOrphanedMonitorStats();
       } catch (error) {
         throw error;
       }
