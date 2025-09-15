@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import NotificationService from "../services/business/NotificationService.js";
+import NotificationService from "../services/business/NotificationChannelService.js";
 
-class NotificationController {
+class NotificationChannelController {
   private notificationService: NotificationService;
   constructor(notificationService: NotificationService) {
     this.notificationService = notificationService;
@@ -103,4 +103,4 @@ class NotificationController {
   };
 }
 
-export default NotificationController;
+export default NotificationChannelController;

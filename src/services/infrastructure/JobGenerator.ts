@@ -3,6 +3,7 @@ import { INetworkService } from "./NetworkService.js";
 import { ICheckService } from "../business/CheckService.js";
 import { IMonitorStatsService } from "../business/MonitorStatsService.js";
 import { IStatusService } from "./StatusService.js";
+import { INotificationService } from "./NotificationService.js";
 import ApiError from "../../utils/ApiError.js";
 
 export interface IJobGenerator {
@@ -15,17 +16,20 @@ class JobGenerator implements IJobGenerator {
   private checkService: ICheckService;
   private monitorStatsService: IMonitorStatsService;
   private statusService: IStatusService;
+  private notificationService: INotificationService;
 
   constructor(
     networkService: INetworkService,
     checkService: ICheckService,
     monitorStatsService: IMonitorStatsService,
-    statusService: IStatusService
+    statusService: IStatusService,
+    notificationService: INotificationService
   ) {
     this.networkService = networkService;
     this.checkService = checkService;
     this.monitorStatsService = monitorStatsService;
     this.statusService = statusService;
+    this.notificationService = notificationService;
   }
 
   generateJob = () => {
@@ -42,9 +46,7 @@ class JobGenerator implements IJobGenerator {
           await this.statusService.updateMonitorStatus(monitor, status);
 
         if (statusChanged) {
-          console.log(
-            `Monitor ${monitor._id} status changed to ${updatedMonitor.status}`
-          );
+          await this.notificationService.handleNotifications(updatedMonitor);
         }
         await this.statusService.updateMonitorStats(updatedMonitor, status);
       } catch (error) {

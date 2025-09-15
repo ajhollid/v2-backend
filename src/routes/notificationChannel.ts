@@ -1,5 +1,5 @@
 import { Router } from "express";
-import NotificationController from "../controllers/NotificationController.js";
+import NotificationController from "../controllers/NotificationChannelController.js";
 import { verifyToken } from "../middleware/VerifyToken.js";
 import { verifyPermission } from "../middleware/VerifyPermissions.js";
 

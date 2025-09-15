@@ -14,9 +14,9 @@ import QueueRoutes from "./routes/queue.js";
 import QueueController from "./controllers/QueueController.js";
 import QueueService from "./services/business/QueueService.js";
 
-import NotificationChannelRoutes from "./routes/notifications.js";
-import NotificationController from "./controllers/NotificationController.js";
-import NotificationService from "./services/business/NotificationService.js";
+import NotificationChannelRoutes from "./routes/notificationChannel.js";
+import NotificationChannelController from "./controllers/NotificationChannelController.js";
+import NotificationChannelService from "./services/business/NotificationChannelService.js";
 
 import { errorHandler } from "./middleware/ErrorHandler.js";
 import { IJobQueue } from "./services/infrastructure/JobQueue.js";
@@ -51,14 +51,17 @@ const init = (jobQueue: IJobQueue) => {
   const queueRouter = new QueueRoutes(queueController);
   v1ApiRouter.use("/queue", queueRouter.getRouter());
 
-  const notificationChannelService = new NotificationService();
-  const notificationChannelController = new NotificationController(
+  const notificationChannelService = new NotificationChannelService();
+  const notificationChannelController = new NotificationChannelController(
     notificationChannelService
   );
   const notificationChannelRouter = new NotificationChannelRoutes(
     notificationChannelController
   );
-  v1ApiRouter.use("/notifications", notificationChannelRouter.getRouter());
+  v1ApiRouter.use(
+    "/notification-channels",
+    notificationChannelRouter.getRouter()
+  );
 
   app.use("/api/v1", v1ApiRouter);
   app.use(errorHandler);

@@ -5,7 +5,7 @@ import {
 } from "../../db/models/index.js";
 import ApiError from "../../utils/ApiError.js";
 
-export interface INotificationService {
+export interface INotificationChannelService {
   create: (
     tokenizedUser: ITokenizedUser,
 
@@ -25,7 +25,7 @@ export interface INotificationService {
   delete: (id: string) => Promise<boolean>;
 }
 
-class NotificationService implements INotificationService {
+class NotificationChannelService implements INotificationChannelService {
   constructor() {}
 
   create = async (
@@ -117,4 +117,4 @@ class NotificationService implements INotificationService {
   };
 }
 
-export default NotificationService;
+export default NotificationChannelService;
