@@ -16,7 +16,7 @@ export interface IMonitorService {
   ) => Promise<IMonitor>;
   getAll: () => Promise<IMonitor[]>;
   getAllEmbedChecks: (page: number, limit: number) => Promise<any[]>;
-  get: (monitorId: string) => Promise<IMonitor | null>;
+  get: (monitorId: string) => Promise<IMonitor>;
   getEmbedChecks: (
     monitorId: string,
     range: string,
@@ -25,13 +25,13 @@ export interface IMonitorService {
   toggleActive: (
     monitorId: string,
     tokenizedUser: ITokenizedUser
-  ) => Promise<IMonitor | null>;
+  ) => Promise<IMonitor>;
   update: (
     tokenizedUser: ITokenizedUser,
     monitorId: string,
     updateData: Partial<IMonitor>
-  ) => Promise<IMonitor | null>;
-  delete: (monitorId: string) => Promise<void>;
+  ) => Promise<IMonitor>;
+  delete: (monitorId: string) => Promise<boolean>;
 }
 
 class MonitorService implements IMonitorService {
@@ -74,7 +74,11 @@ class MonitorService implements IMonitorService {
   }
 
   async get(monitorId: string) {
-    return Monitor.findById(monitorId);
+    const monitor = await Monitor.findById(monitorId);
+    if (!monitor) {
+      throw new ApiError("Monitor not found", 404);
+    }
+    return monitor;
   }
 
   async getEmbedChecks(
@@ -159,9 +163,9 @@ class MonitorService implements IMonitorService {
     };
   }
 
-  async toggleActive(monitorId: string, tokenizedUser: ITokenizedUser) {
+  async toggleActive(id: string, tokenizedUser: ITokenizedUser) {
     const updatedMonitor = await Monitor.findOneAndUpdate(
-      { _id: monitorId },
+      { _id: id },
       [
         {
           $set: {
@@ -171,8 +175,18 @@ class MonitorService implements IMonitorService {
           },
         },
       ],
-      { new: true } // ensures updated doc is returned
+      { new: true }
     );
+
+    if (!updatedMonitor) {
+      throw new ApiError("Monitor not found", 404);
+    }
+
+    if (updatedMonitor?.isActive) {
+      await this.jobQueue.resumeJob(updatedMonitor);
+    } else {
+      await this.jobQueue.pauseJob(updatedMonitor);
+    }
     return updatedMonitor;
   }
 
@@ -219,6 +233,7 @@ class MonitorService implements IMonitorService {
     }
     await monitor.deleteOne();
     await this.jobQueue.deleteJob(monitor);
+    return true;
   }
 }
 

@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import { Check } from "../index.js";
+import { required } from "joi";
 
 export const MonitorTypes = ["http", "https"] as const;
 export type MonitorType = (typeof MonitorTypes)[number];
@@ -23,6 +24,7 @@ export interface IMonitor extends Document {
   m: number; // Length of the array
   lastStatuses: string[]; // Array to store last few statuses
   lastCheckedAt?: Date;
+  notificationChannels?: Types.ObjectId[];
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId;
   createdAt: Date;
@@ -55,6 +57,14 @@ const MonitorSchema = new Schema<IMonitor>(
       maxLength: 10,
     },
     lastCheckedAt: { type: Date },
+    notificationChannels: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "NotificationChannel",
+        required: false,
+        default: [],
+      },
+    ],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
