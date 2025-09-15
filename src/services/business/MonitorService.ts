@@ -3,29 +3,12 @@ import {
   IMonitor,
   Monitor,
   ITokenizedUser,
-  IMonitorStats,
   MonitorStats,
   Check,
 } from "../../db/models/index.js";
 import ApiError from "../../utils/ApiError.js";
 import { IJobQueue } from "../infrastructure/JobQueue.js";
-
-interface groupClauseType {
-  _id: { [key: string]: any };
-  count: object;
-  avgResponseTime: object;
-}
-
-export interface MonitorWithChecksResponse {
-  monitor: IMonitor;
-  checks: Array<{
-    _id: string;
-    count: number;
-    avgResponseTime: number;
-  }>;
-  stats: IMonitorStats;
-}
-
+import { MonitorWithChecksResponse } from "../../types/index.js";
 export interface IMonitorService {
   create: (
     tokenizedUser: ITokenizedUser,
@@ -39,6 +22,10 @@ export interface IMonitorService {
     range: string,
     status?: string
   ) => Promise<MonitorWithChecksResponse>;
+  toggleActive: (
+    monitorId: string,
+    tokenizedUser: ITokenizedUser
+  ) => Promise<IMonitor | null>;
   update: (
     tokenizedUser: ITokenizedUser,
     monitorId: string,
@@ -102,7 +89,11 @@ class MonitorService implements IMonitorService {
     const now = new Date();
     let startDate: Date;
 
-    let groupClause: groupClauseType = {
+    let groupClause: {
+      _id: { [key: string]: any };
+      count: object;
+      avgResponseTime: object;
+    } = {
       _id: { $dateToString: { format: "", date: "$createdAt" } },
       count: { $sum: 1 },
       avgResponseTime: { $avg: "$responseTime" },
@@ -166,6 +157,23 @@ class MonitorService implements IMonitorService {
       checks,
       stats: monitorStats,
     };
+  }
+
+  async toggleActive(monitorId: string, tokenizedUser: ITokenizedUser) {
+    const updatedMonitor = await Monitor.findOneAndUpdate(
+      { _id: monitorId },
+      [
+        {
+          $set: {
+            isActive: { $not: "$isActive" },
+            updatedBy: tokenizedUser.sub,
+            updatedAt: new Date(),
+          },
+        },
+      ],
+      { new: true } // ensures updated doc is returned
+    );
+    return updatedMonitor;
   }
 
   async update(

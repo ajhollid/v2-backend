@@ -89,6 +89,28 @@ class MonitorController {
     }
   };
 
+  toggleActive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tokenizedUser = req.user;
+      if (!tokenizedUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const id = req.params.id;
+      if (!id) {
+        throw new ApiError("Monitor ID is required", 400);
+      }
+
+      const monitor = await this.monitorService.toggleActive(id, tokenizedUser);
+      res.status(200).json({
+        message: "Monitor paused/unpaused successfully",
+        data: monitor,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tokenizedUser = req.user;

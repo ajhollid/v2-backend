@@ -29,6 +29,13 @@ class MonitorRoutes {
     );
 
     this.router.patch(
+      "/:id/active",
+      verifyToken,
+      verifyPermission(["monitors.update"]),
+      this.controller.toggleActive
+    );
+
+    this.router.patch(
       "/:id",
       verifyToken,
       verifyPermission(["monitors.update"]),
