@@ -89,18 +89,18 @@ class NotificationService implements INotificationService {
       }
     }
 
-    const notificationChannel = await NotificationChannel.findById(id);
-    if (!notificationChannel) {
-      throw new ApiError("Notification channel not found", 404);
-    }
+    const updatedChannel = await NotificationChannel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          ...safeUpdate,
+          updatedAt: new Date(),
+          updatedBy: tokenizedUser.sub,
+        },
+      },
+      { new: true, runValidators: true }
+    );
 
-    notificationChannel.set({
-      ...safeUpdate,
-      updatedAt: new Date(),
-      updatedBy: tokenizedUser.sub,
-    });
-
-    const updatedChannel = await notificationChannel.save();
     if (!updatedChannel) {
       throw new ApiError("Failed to update notification channel", 500);
     }

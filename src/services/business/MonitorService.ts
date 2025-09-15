@@ -201,6 +201,7 @@ class MonitorService implements IMonitorService {
       "isActive",
       "n",
       "m",
+      "notificationChannels",
     ];
     const safeUpdate: Partial<IMonitor> = {};
 
@@ -210,18 +211,21 @@ class MonitorService implements IMonitorService {
       }
     }
 
-    const monitor = await Monitor.findById(monitorId);
-    if (!monitor) {
+    const updatedMonitor = await Monitor.findByIdAndUpdate(
+      monitorId,
+      {
+        $set: {
+          ...safeUpdate,
+          updatedAt: new Date(),
+          updatedBy: tokenizedUser.sub,
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedMonitor) {
       throw new ApiError("Monitor not found", 404);
     }
-
-    monitor.set({
-      ...safeUpdate,
-      updatedAt: new Date(),
-      updatedBy: tokenizedUser.sub,
-    });
-
-    const updatedMonitor = await monitor.save();
     await this.jobQueue.updateJob(updatedMonitor);
     return updatedMonitor;
   }
