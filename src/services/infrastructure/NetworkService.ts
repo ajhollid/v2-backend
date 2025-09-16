@@ -2,16 +2,22 @@ import { Got } from "got";
 import { IMonitor } from "../../db/models/index.js";
 import { GotTimings } from "../../db/models/monitors/Check.js";
 import type { Response } from "got";
-import type { ISystemInfo, ICaptureInfo } from "../../db/models/index.js";
+import type {
+  ISystemInfo,
+  ICaptureInfo,
+  ILighthouseResult,
+} from "../../db/models/index.js";
 import {
   MonitorType,
   MonitorStatus,
 } from "../../db/models/monitors/Monitor.js";
 import ApiError from "../../utils/ApiError.js";
+import { config } from "../../config/index.js";
 export interface INetworkService {
   requestHttp: (monitor: IMonitor) => Promise<StatusResponse>;
   requestInfrastructure: (monitor: IMonitor) => Promise<StatusResponse>;
   requestStatus: (monitor: IMonitor) => Promise<StatusResponse>;
+  requestPagespeed: (monitor: IMonitor) => Promise<StatusResponse>;
 }
 
 export interface ICapturePayload {
@@ -19,7 +25,12 @@ export interface ICapturePayload {
   capture: ICaptureInfo;
 }
 
-export type StatusResponse = {
+export interface ILighthousePayload {
+  lighthouseResult?: ILighthouseResult;
+  [k: string]: unknown;
+}
+
+export type StatusResponse<TPayload = unknown> = {
   monitorId: string;
   type: MonitorType;
   code: number;
@@ -27,7 +38,7 @@ export type StatusResponse = {
   message: string;
   responseTime: number;
   timings: GotTimings;
-  payload?: ICapturePayload;
+  payload?: TPayload;
 };
 
 class NetworkService implements INetworkService {
@@ -38,12 +49,12 @@ class NetworkService implements INetworkService {
     this.NETWORK_ERROR = 5000;
   }
 
-  buildStatusResponse = (
+  buildStatusResponse = <T>(
     monitor: IMonitor,
-    response: Response
-  ): StatusResponse => {
+    response: Response<T>
+  ): StatusResponse<T> => {
     try {
-      const statusResponse: StatusResponse = {
+      const statusResponse: StatusResponse<T> = {
         monitorId: monitor._id.toString(),
         type: monitor.type,
         code: response.statusCode,
@@ -55,14 +66,14 @@ class NetworkService implements INetworkService {
 
       return statusResponse;
     } catch (error: any) {
-      const statusResponse = {
+      const statusResponse: StatusResponse<T> = {
         monitorId: monitor._id.toString(),
         type: monitor.type,
         status: "down" as MonitorStatus,
         code: this.NETWORK_ERROR,
         message: error.message || "Network error",
         responseTime: error.timings?.phases?.total || 0,
-        timings: error.timings || { phases: {} },
+        timings: error.timings || ({ phases: {} } as GotTimings),
       };
       if (error.name === "HTTPError" || error.name === "RequestError") {
         statusResponse.code = error?.response?.statusCode || this.NETWORK_ERROR;
@@ -116,6 +127,30 @@ class NetworkService implements INetworkService {
     }
   };
 
+  requestPagespeed = async (monitor: IMonitor) => {
+    const apiKey = config.PAGESPEED_API_KEY;
+    if (!apiKey) {
+      throw new Error("No API key provided for pagespeed monitor");
+    }
+
+    const statusResponse = (await this.requestHttp(
+      monitor
+    )) as StatusResponse<ILighthousePayload>;
+
+    const url = monitor.url;
+    const pagespeedUrl = `https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url}&category=seo&category=accessibility&category=best-practices&category=performance&key=${apiKey}`;
+    const pagespeedResponse = await this.got<ILighthousePayload>(pagespeedUrl, {
+      responseType: "json",
+    });
+    const payload = pagespeedResponse.body;
+    if (payload) {
+      statusResponse.payload = payload;
+      return statusResponse;
+    } else {
+      throw new ApiError("No payload received from pagespeed monitor", 500);
+    }
+  };
+
   requestStatus = async (monitor: IMonitor) => {
     switch (monitor.type) {
       case "http":
@@ -124,6 +159,8 @@ class NetworkService implements INetworkService {
         return await this.requestHttp(monitor);
       case "infrastructure":
         return await this.requestInfrastructure(monitor);
+      case "pagespeed":
+        return await this.requestPagespeed(monitor);
       default:
         throw new Error("Not implemented");
     }

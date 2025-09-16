@@ -2,7 +2,12 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 import { Check } from "../index.js";
 import { required } from "joi";
 
-export const MonitorTypes = ["http", "https", "infrastructure"] as const;
+export const MonitorTypes = [
+  "http",
+  "https",
+  "infrastructure",
+  "pagespeed",
+] as const;
 export type MonitorType = (typeof MonitorTypes)[number];
 
 export const MonitorStatuses = [

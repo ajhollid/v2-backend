@@ -86,6 +86,40 @@ export interface ISystemInfo {
   net: INetInfo[];
 }
 
+export interface ILighthouseAudit {
+  id?: string;
+  title?: string;
+  score?: number | null;
+  displayValue?: string;
+  numericValue?: number;
+  numericUnit?: string;
+}
+export interface ILighthouseCategories {
+  accessibility?: { score?: number | null };
+  "best-practices"?: { score?: number | null };
+  seo?: { score?: number | null };
+  performance?: { score?: number | null };
+}
+
+export interface ILighthouseResult {
+  categories?: ILighthouseCategories;
+  audits?: Record<string, ILighthouseAudit>;
+}
+
+export interface ICheckLighthouseFields {
+  accessibility: number;
+  bestPractices: number;
+  seo: number;
+  performance: number;
+  audits: {
+    cls: ILighthouseAudit;
+    si: ILighthouseAudit;
+    fcp: ILighthouseAudit;
+    lcp: ILighthouseAudit;
+    tbt: ILighthouseAudit;
+  };
+}
+
 export interface ICheck extends Document {
   _id: Types.ObjectId;
   monitorId: Types.ObjectId;
@@ -104,6 +138,7 @@ export interface ICheck extends Document {
   updatedAt: Date;
   system?: ISystemInfo;
   capture?: ICaptureInfo;
+  lighthouse?: ICheckLighthouseFields;
 }
 
 const CheckSchema = new Schema<ICheck>(
@@ -204,6 +239,43 @@ const CheckSchema = new Schema<ICheck>(
       type: {
         version: { type: String },
         mode: { type: String },
+      },
+      required: false,
+    },
+    lighthouse: {
+      accessibility: { type: Number, required: false },
+      bestPractices: { type: Number, required: false },
+      seo: { type: Number, required: false },
+      performance: { type: Number, required: false },
+      audits: {
+        cls: {
+          type: Object,
+        },
+        si: {
+          type: Object,
+        },
+        fcp: {
+          type: Object,
+        },
+        lcp: {
+          type: Object,
+        },
+        tbt: {
+          type: Object,
+        },
+      },
+      type: {
+        accessibility: { type: Number },
+        bestPractices: { type: Number },
+        seo: { type: Number },
+        performance: { type: Number },
+        audits: {
+          cls: { type: Object },
+          si: { type: Object },
+          fcp: { type: Object },
+          lcp: { type: Object },
+          tbt: { type: Object },
+        },
       },
       required: false,
     },

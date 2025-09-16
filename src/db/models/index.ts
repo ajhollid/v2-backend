@@ -16,7 +16,11 @@ export type {
   IHostInfo,
   IMemoryInfo,
   ICpuInfo,
+  ILighthouseAudit,
   ITimingPhases,
+  ILighthouseCategories,
+  ILighthouseResult,
+  ICheckLighthouseFields,
 } from "./monitors/Check.js";
 export type { IMonitorStats } from "./monitors/MonitorStats.js";
 export { MonitorStats } from "./monitors/MonitorStats.js";

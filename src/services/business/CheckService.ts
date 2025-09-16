@@ -1,8 +1,12 @@
+import { json } from "stream/consumers";
 import { ICheck, Check, Monitor } from "../../db/models/index.js";
 import type { ISystemInfo, ICaptureInfo } from "../../db/models/index.js";
 import { MonitorType } from "../../db/models/monitors/Monitor.js";
 import { StatusResponse } from "../infrastructure/NetworkService.js";
-import type { ICapturePayload } from "../infrastructure/NetworkService.js";
+import type {
+  ICapturePayload,
+  ILighthousePayload,
+} from "../infrastructure/NetworkService.js";
 import mongoose from "mongoose";
 
 export interface ICheckService {
@@ -57,6 +61,19 @@ class CheckService implements ICheckService {
     return true;
   };
 
+  isPagespeedPayload = (payload: any): payload is ILighthousePayload => {
+    if (!payload || typeof payload !== "object") return false;
+
+    // Check "lighthouseResult" exists and is an object
+    if (
+      !("lighthouseResult" in payload) ||
+      typeof payload.lighthouseResult !== "object"
+    ) {
+      return false;
+    }
+    return true;
+  };
+
   buildCheck = async (
     statusResponse: StatusResponse,
     type: MonitorType
@@ -73,7 +90,7 @@ class CheckService implements ICheckService {
     });
 
     // If not a special type, we're done
-    if (type !== "infrastructure") {
+    if (type !== "infrastructure" && type !== "pagespeed") {
       return check;
     }
 
@@ -84,6 +101,28 @@ class CheckService implements ICheckService {
         }
         check.system = statusResponse.payload.data;
         check.capture = statusResponse.payload.capture;
+        return check;
+      case "pagespeed":
+        if (!this.isPagespeedPayload(statusResponse.payload)) {
+          throw new Error("Invalid payload for pagespeed monitor");
+        }
+
+        const lighthouseResult = statusResponse?.payload?.lighthouseResult;
+        check.lighthouse = {
+          accessibility:
+            lighthouseResult?.categories?.accessibility?.score || 0,
+          bestPractices:
+            lighthouseResult?.categories?.["best-practices"]?.score || 0,
+          seo: lighthouseResult?.categories?.seo?.score || 0,
+          performance: lighthouseResult?.categories?.performance?.score || 0,
+          audits: {
+            cls: lighthouseResult?.audits?.["cumulative-layout-shift"] || {},
+            si: lighthouseResult?.audits?.["speed-index"] || {},
+            fcp: lighthouseResult?.audits?.["first-contentful-paint"] || {},
+            lcp: lighthouseResult?.audits?.["largest-contentful-paint"] || {},
+            tbt: lighthouseResult?.audits?.["total-blocking-time"] || {},
+          },
+        };
         return check;
       default:
         throw new Error(`Unsupported monitor type: ${type}`);
