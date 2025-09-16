@@ -1,7 +1,5 @@
-import { IMonitor } from "../../../db/models/index.js";
-
-export interface IMessageService {
-  buildMessage: (monitor: IMonitor) => string;
-  sendMessage: (message: string) => Promise<boolean>;
-  testMessage: (monitor: IMonitor, message: string) => Promise<boolean>;
-}
+export { default as DiscordService } from "./Discord.js";
+export { default as EmailService } from "./Email.js";
+export { default as SlackService } from "./Slack.js";
+export { default as WebhookService } from "./Webhook.js";
+export * from "./IMessageService.js";

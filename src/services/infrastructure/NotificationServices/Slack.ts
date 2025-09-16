@@ -1,15 +1,15 @@
 import { IMonitor } from "../../../db/models/index.js";
-import { IMessageService } from "./index.js";
+import { IMessageService } from "./IMessageService.js";
 
-class EmailService implements IMessageService {
+class SlackService implements IMessageService {
   constructor() {}
 
   buildMessage = (monitor: IMonitor) => {
-    return `Email notification for monitor: ${monitor._id}`;
+    return `Slack notification for monitor: ${monitor._id}`;
   };
 
   sendMessage = async (message: string) => {
-    console.log("Sending email with message:", message);
+    console.log("Sending Slack message:", message);
     return true;
   };
 
@@ -18,4 +18,4 @@ class EmailService implements IMessageService {
   };
 }
 
-export default EmailService;
+export default SlackService;

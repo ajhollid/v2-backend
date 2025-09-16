@@ -1,9 +1,10 @@
 import { IMonitor, NotificationChannel } from "../../db/models/index.js";
-import DiscordService from "./NotificationServices/discord.js";
-import EmailService from "./NotificationServices/email.js";
-import SlackService from "./NotificationServices/slack.js";
-import WebhookService from "./NotificationServices/webhook.js";
-
+import {
+  EmailService,
+  SlackService,
+  DiscordService,
+  WebhookService,
+} from "./NotificationServices/index.js";
 export interface INotificationService {
   handleNotifications: (monitor: IMonitor) => Promise<void>;
 }

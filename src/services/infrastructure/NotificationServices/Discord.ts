@@ -1,5 +1,5 @@
 import { IMonitor } from "../../../db/models/index.js";
-import { IMessageService } from "./index.js";
+import { IMessageService } from "./IMessageService.js";
 
 class DiscordService implements IMessageService {
   constructor() {}
