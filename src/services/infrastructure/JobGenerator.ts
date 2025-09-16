@@ -40,7 +40,7 @@ class JobGenerator implements IJobGenerator {
           throw new ApiError("No monitorID for creating job", 400);
         }
         const status = await this.networkService.requestStatus(monitor);
-        const check = await this.checkService.buildCheck(status);
+        const check = await this.checkService.buildCheck(status, monitor.type);
         await check.save();
         const [updatedMonitor, statusChanged] =
           await this.statusService.updateMonitorStatus(monitor, status);

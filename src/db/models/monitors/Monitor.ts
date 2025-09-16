@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 import { Check } from "../index.js";
 import { required } from "joi";
 
-export const MonitorTypes = ["http", "https"] as const;
+export const MonitorTypes = ["http", "https", "infrastructure"] as const;
 export type MonitorType = (typeof MonitorTypes)[number];
 
 export const MonitorStatuses = [
@@ -16,6 +16,7 @@ export interface IMonitor extends Document {
   _id: Types.ObjectId;
   name: string;
   url: string;
+  secret?: string;
   type: MonitorType;
   interval: number; // in ms
   isActive: boolean;
@@ -35,6 +36,7 @@ const MonitorSchema = new Schema<IMonitor>(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
     url: { type: String, required: true, trim: true },
+    secret: { type: String, required: false },
     type: {
       type: String,
       required: true,

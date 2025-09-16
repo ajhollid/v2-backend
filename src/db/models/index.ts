@@ -7,7 +7,17 @@ export { connectDatabase, disconnectDatabase } from "../index.js";
 export { Monitor } from "./monitors/Monitor.js";
 export type { IMonitor } from "./monitors/Monitor.js";
 export { Check } from "./monitors/Check.js";
-export type { ICheck } from "./monitors/Check.js";
+export type {
+  ICheck,
+  ISystemInfo,
+  ICaptureInfo,
+  INetInfo,
+  IDiskInfo,
+  IHostInfo,
+  IMemoryInfo,
+  ICpuInfo,
+  ITimingPhases,
+} from "./monitors/Check.js";
 export type { IMonitorStats } from "./monitors/MonitorStats.js";
 export { MonitorStats } from "./monitors/MonitorStats.js";
 export type { INotificationChannel } from "./notification-channel/NotificationChannel.js";
