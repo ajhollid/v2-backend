@@ -72,16 +72,22 @@ class CheckService implements ICheckService {
       timings: statusResponse.timings,
     });
 
+    // If not a special type, we're done
     if (type !== "infrastructure") {
       return check;
     }
-    if (this.isCapturePayload(statusResponse.payload)) {
-      check.system = statusResponse.payload.data;
-      check.capture = statusResponse.payload.capture;
-    } else {
-      throw new Error("Invalid payload for infrastructure monitor");
+
+    switch (type) {
+      case "infrastructure":
+        if (!this.isCapturePayload(statusResponse.payload)) {
+          throw new Error("Invalid payload for infrastructure monitor");
+        }
+        check.system = statusResponse.payload.data;
+        check.capture = statusResponse.payload.capture;
+        return check;
+      default:
+        throw new Error(`Unsupported monitor type: ${type}`);
     }
-    return check;
   };
 
   cleanupOrphanedChecks = async () => {
