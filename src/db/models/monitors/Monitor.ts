@@ -5,6 +5,7 @@ import { required } from "joi";
 export const MonitorTypes = [
   "http",
   "https",
+  "ping",
   "infrastructure",
   "pagespeed",
 ] as const;

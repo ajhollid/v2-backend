@@ -32,6 +32,7 @@
     "got": "14.4.8",
     "jsonwebtoken": "9.0.2",
     "mongoose": "8.18.1",
+    "ping": "0.4.4",
     "super-simple-scheduler": "1.4.1"
   }
 }

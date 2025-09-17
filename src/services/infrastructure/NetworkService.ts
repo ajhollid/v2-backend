@@ -1,4 +1,5 @@
 import { Got } from "got";
+import ping from "ping";
 import { IMonitor } from "../../db/models/index.js";
 import { GotTimings } from "../../db/models/monitors/Check.js";
 import type { Response } from "got";
@@ -18,6 +19,7 @@ export interface INetworkService {
   requestInfrastructure: (monitor: IMonitor) => Promise<StatusResponse>;
   requestStatus: (monitor: IMonitor) => Promise<StatusResponse>;
   requestPagespeed: (monitor: IMonitor) => Promise<StatusResponse>;
+  requestPing: (monitor: IMonitor) => Promise<StatusResponse>;
 }
 
 export interface ICapturePayload {
@@ -29,16 +31,16 @@ export interface ILighthousePayload {
   lighthouseResult: ILighthouseResult;
 }
 
-export type StatusResponse<TPayload = unknown> = {
+export interface StatusResponse<TPayload = unknown> {
   monitorId: string;
   type: MonitorType;
-  code: number;
+  code?: number;
   status: MonitorStatus;
   message: string;
   responseTime: number;
-  timings: GotTimings;
+  timings?: GotTimings;
   payload?: TPayload;
-};
+}
 
 class NetworkService implements INetworkService {
   private got: Got;
@@ -155,8 +157,22 @@ class NetworkService implements INetworkService {
     }
   };
 
+  requestPing = async (monitor: IMonitor) => {
+    const response = await ping.promise.probe(monitor.url);
+    const status = response?.alive === true ? "up" : "down";
+
+    return {
+      monitorId: monitor._id.toString(),
+      type: monitor.type,
+      status: status as MonitorStatus,
+      message: "Ping successful",
+      responseTime: response?.time || 0,
+      timings: { phases: {} } as GotTimings,
+    };
+  };
+
   requestStatus = async (monitor: IMonitor) => {
-    switch (monitor.type) {
+    switch (monitor?.type) {
       case "http":
         return await this.requestHttp(monitor);
       case "https":
@@ -165,6 +181,8 @@ class NetworkService implements INetworkService {
         return await this.requestInfrastructure(monitor);
       case "pagespeed":
         return await this.requestPagespeed(monitor);
+      case "ping":
+        return await this.requestPing(monitor);
       default:
         throw new Error("Not implemented");
     }

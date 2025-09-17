@@ -21,12 +21,10 @@ class CheckService implements ICheckService {
   private isCapturePayload = (payload: any): payload is ICapturePayload => {
     if (!payload || typeof payload !== "object") return false;
 
-    // Check "data" exists and is an object
     if (!("data" in payload) || typeof payload.data !== "object") {
       return false;
     }
 
-    // Minimal validation for system info
     const data = payload.data as Partial<ISystemInfo>;
     if (
       !data.cpu ||
@@ -44,7 +42,6 @@ class CheckService implements ICheckService {
       return false;
     }
 
-    // Disk and net should be arrays if present
     if (data.disk && !Array.isArray(data.disk)) {
       return false;
     }
@@ -66,7 +63,6 @@ class CheckService implements ICheckService {
   ): payload is ILighthousePayload => {
     if (!payload || typeof payload !== "object") return false;
 
-    // Check "lighthouseResult" exists and is an object
     if (
       !("lighthouseResult" in payload) ||
       typeof payload.lighthouseResult !== "object"
@@ -80,11 +76,11 @@ class CheckService implements ICheckService {
     const monitorId = new mongoose.Types.ObjectId(statusResponse.monitorId);
     const check = new Check({
       monitorId: monitorId,
-      type: statusResponse.type,
-      status: statusResponse.status,
-      message: statusResponse.message,
-      responseTime: statusResponse.responseTime,
-      timings: statusResponse.timings,
+      type: statusResponse?.type,
+      status: statusResponse?.status,
+      message: statusResponse?.message,
+      responseTime: statusResponse?.responseTime,
+      timings: statusResponse?.timings,
     });
     return check;
   };
@@ -144,6 +140,8 @@ class CheckService implements ICheckService {
       case "https":
         return this.buildBaseCheck(statusResponse);
 
+      case "ping":
+        return this.buildBaseCheck(statusResponse);
       default:
         throw new Error(`Unsupported monitor type: ${type}`);
     }
