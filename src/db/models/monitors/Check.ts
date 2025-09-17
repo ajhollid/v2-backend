@@ -294,7 +294,6 @@ const CheckSchema = new Schema<ICheck>(
   { timestamps: true }
 );
 
-CheckSchema.index({ monitorId: 1 });
 CheckSchema.index({ monitorId: 1, createdAt: -1 });
 CheckSchema.index({ status: 1 });
 CheckSchema.index({ status: 1, ack: 1 });

@@ -63,8 +63,6 @@ const MonitorStatsSchema = new Schema<IMonitorStats>(
   { timestamps: true }
 );
 
-MonitorStatsSchema.index({ monitorId: 1 });
-
 export const MonitorStats = mongoose.model<IMonitorStats>(
   "MonitorStats",
   MonitorStatsSchema

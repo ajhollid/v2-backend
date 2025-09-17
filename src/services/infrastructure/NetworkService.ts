@@ -26,8 +26,7 @@ export interface ICapturePayload {
 }
 
 export interface ILighthousePayload {
-  lighthouseResult?: ILighthouseResult;
-  [k: string]: unknown;
+  lighthouseResult: ILighthouseResult;
 }
 
 export type StatusResponse<TPayload = unknown> = {
@@ -49,7 +48,7 @@ class NetworkService implements INetworkService {
     this.NETWORK_ERROR = 5000;
   }
 
-  buildStatusResponse = <T>(
+  private buildStatusResponse = <T>(
     monitor: IMonitor,
     response: Response<T>
   ): StatusResponse<T> => {
@@ -132,12 +131,17 @@ class NetworkService implements INetworkService {
     if (!apiKey) {
       throw new Error("No API key provided for pagespeed monitor");
     }
-
-    const statusResponse = (await this.requestHttp(
-      monitor
-    )) as StatusResponse<ILighthousePayload>;
-
     const url = monitor.url;
+    if (!url) {
+      throw new Error("No URL provided");
+    }
+
+    const response: Response = await this.got(url);
+    const statusResponse = this.buildStatusResponse(
+      monitor,
+      response
+    ) as StatusResponse<ILighthousePayload>;
+
     const pagespeedUrl = `https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url}&category=seo&category=accessibility&category=best-practices&category=performance&key=${apiKey}`;
     const pagespeedResponse = await this.got<ILighthousePayload>(pagespeedUrl, {
       responseType: "json",

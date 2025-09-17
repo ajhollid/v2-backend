@@ -18,7 +18,7 @@ export interface ICheckService {
 }
 
 class CheckService implements ICheckService {
-  isCapturePayload = (payload: any): payload is ICapturePayload => {
+  private isCapturePayload = (payload: any): payload is ICapturePayload => {
     if (!payload || typeof payload !== "object") return false;
 
     // Check "data" exists and is an object
@@ -61,7 +61,9 @@ class CheckService implements ICheckService {
     return true;
   };
 
-  isPagespeedPayload = (payload: any): payload is ILighthousePayload => {
+  private isPagespeedPayload = (
+    payload: any
+  ): payload is ILighthousePayload => {
     if (!payload || typeof payload !== "object") return false;
 
     // Check "lighthouseResult" exists and is an object
@@ -74,12 +76,8 @@ class CheckService implements ICheckService {
     return true;
   };
 
-  buildCheck = async (
-    statusResponse: StatusResponse,
-    type: MonitorType
-  ): Promise<ICheck> => {
+  private buildBaseCheck = (statusResponse: StatusResponse) => {
     const monitorId = new mongoose.Types.ObjectId(statusResponse.monitorId);
-
     const check = new Check({
       monitorId: monitorId,
       type: statusResponse.type,
@@ -88,42 +86,64 @@ class CheckService implements ICheckService {
       responseTime: statusResponse.responseTime,
       timings: statusResponse.timings,
     });
+    return check;
+  };
 
-    // If not a special type, we're done
-    if (type !== "infrastructure" && type !== "pagespeed") {
-      return check;
+  private buildInfrastructureCheck = (
+    statusResponse: StatusResponse<ICapturePayload>
+  ) => {
+    if (!this.isCapturePayload(statusResponse.payload)) {
+      throw new Error("Invalid payload for infrastructure monitor");
     }
+    const check = this.buildBaseCheck(statusResponse);
+    check.system = statusResponse.payload.data;
+    check.capture = statusResponse.payload.capture;
+    return check;
+  };
 
+  private buildPagespeedCheck = (
+    statusResponse: StatusResponse<ILighthousePayload>
+  ) => {
+    if (!this.isPagespeedPayload(statusResponse.payload)) {
+      throw new Error("Invalid payload for pagespeed monitor");
+    }
+    const check = this.buildBaseCheck(statusResponse);
+    const lighthouseResult = statusResponse?.payload?.lighthouseResult;
+    check.lighthouse = {
+      accessibility: lighthouseResult?.categories?.accessibility?.score || 0,
+      bestPractices:
+        lighthouseResult?.categories?.["best-practices"]?.score || 0,
+      seo: lighthouseResult?.categories?.seo?.score || 0,
+      performance: lighthouseResult?.categories?.performance?.score || 0,
+      audits: {
+        cls: lighthouseResult?.audits?.["cumulative-layout-shift"] || {},
+        si: lighthouseResult?.audits?.["speed-index"] || {},
+        fcp: lighthouseResult?.audits?.["first-contentful-paint"] || {},
+        lcp: lighthouseResult?.audits?.["largest-contentful-paint"] || {},
+        tbt: lighthouseResult?.audits?.["total-blocking-time"] || {},
+      },
+    };
+    return check;
+  };
+
+  buildCheck = async (
+    statusResponse: StatusResponse,
+    type: MonitorType
+  ): Promise<ICheck> => {
     switch (type) {
       case "infrastructure":
-        if (!this.isCapturePayload(statusResponse.payload)) {
-          throw new Error("Invalid payload for infrastructure monitor");
-        }
-        check.system = statusResponse.payload.data;
-        check.capture = statusResponse.payload.capture;
-        return check;
-      case "pagespeed":
-        if (!this.isPagespeedPayload(statusResponse.payload)) {
-          throw new Error("Invalid payload for pagespeed monitor");
-        }
+        return this.buildInfrastructureCheck(
+          statusResponse as StatusResponse<ICapturePayload>
+        );
 
-        const lighthouseResult = statusResponse?.payload?.lighthouseResult;
-        check.lighthouse = {
-          accessibility:
-            lighthouseResult?.categories?.accessibility?.score || 0,
-          bestPractices:
-            lighthouseResult?.categories?.["best-practices"]?.score || 0,
-          seo: lighthouseResult?.categories?.seo?.score || 0,
-          performance: lighthouseResult?.categories?.performance?.score || 0,
-          audits: {
-            cls: lighthouseResult?.audits?.["cumulative-layout-shift"] || {},
-            si: lighthouseResult?.audits?.["speed-index"] || {},
-            fcp: lighthouseResult?.audits?.["first-contentful-paint"] || {},
-            lcp: lighthouseResult?.audits?.["largest-contentful-paint"] || {},
-            tbt: lighthouseResult?.audits?.["total-blocking-time"] || {},
-          },
-        };
-        return check;
+      case "pagespeed":
+        return this.buildPagespeedCheck(
+          statusResponse as StatusResponse<ILighthousePayload>
+        );
+      case "http":
+      case "https":
+        return this.buildBaseCheck(statusResponse);
+
       default:
         throw new Error(`Unsupported monitor type: ${type}`);
     }
@@ -135,10 +155,10 @@ class CheckService implements ICheckService {
       const result = await Check.deleteMany({
         monitorId: { $nin: monitorIds },
       });
-      console.log(`Deleted ${result.deletedCount} orphaned checks.`);
+      console.log(`Deleted ${result.deletedCount} orphaned Checks.`);
       return true;
     } catch (error) {
-      console.error("Error cleaning up orphaned checks:", error);
+      console.error("Error cleaning up orphaned Checks:", error);
       return false;
     }
   };
