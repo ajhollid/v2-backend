@@ -73,14 +73,13 @@ class MonitorService implements IMonitorService {
   ) => {
     const skip = (page - 1) * limit;
     let find = {};
-    if (type.length > 0) find = { $in: type };
+    if (type.length > 0) find = { type: { $in: type } };
     const monitors = await Monitor.find(find).skip(skip).limit(limit);
     const monitorsWithChecks = await Promise.all(
       monitors.map(async (monitor) => {
         const checks = await Check.find({
           monitorId: monitor._id,
         })
-          .select(["status", "responseTime", "createdAt"])
           .limit(25)
           .sort({ createdAt: -1 }) // newest first
           .lean();
