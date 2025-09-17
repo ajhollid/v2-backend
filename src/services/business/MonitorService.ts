@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 import {
   IMonitor,
   Monitor,
@@ -9,14 +10,21 @@ import {
 import ApiError from "../../utils/ApiError.js";
 import { IJobQueue } from "../infrastructure/JobQueue.js";
 import { MonitorWithChecksResponse } from "../../types/index.js";
-import { MonitorStatus } from "../../db/models/monitors/Monitor.js";
+import {
+  MonitorStatus,
+  MonitorType,
+} from "../../db/models/monitors/Monitor.js";
 export interface IMonitorService {
   create: (
     tokenizedUser: ITokenizedUser,
     monitorData: IMonitor
   ) => Promise<IMonitor>;
   getAll: () => Promise<IMonitor[]>;
-  getAllEmbedChecks: (page: number, limit: number) => Promise<any[]>;
+  getAllEmbedChecks: (
+    page: number,
+    limit: number,
+    type: MonitorType[]
+  ) => Promise<any[]>;
   get: (monitorId: string) => Promise<IMonitor>;
   getEmbedChecks: (
     monitorId: string,
@@ -41,7 +49,7 @@ class MonitorService implements IMonitorService {
     this.jobQueue = jobQueue;
   }
 
-  async create(tokenizedUser: ITokenizedUser, monitorData: IMonitor) {
+  create = async (tokenizedUser: ITokenizedUser, monitorData: IMonitor) => {
     const monitor = await Monitor.create({
       ...monitorData,
       createdBy: tokenizedUser.sub,
@@ -52,18 +60,26 @@ class MonitorService implements IMonitorService {
     });
     await this.jobQueue.addJob(monitor);
     return monitor;
-  }
+  };
 
-  async getAll() {
+  getAll = async () => {
     return Monitor.find();
-  }
+  };
 
-  async getAllEmbedChecks(page: number, limit: number) {
+  getAllEmbedChecks = async (
+    page: number,
+    limit: number,
+    type: MonitorType[] = []
+  ) => {
     const skip = (page - 1) * limit;
-    const monitors = await Monitor.find().skip(skip).limit(limit);
+    let find = {};
+    if (type.length > 0) find = { $in: type };
+    const monitors = await Monitor.find(find).skip(skip).limit(limit);
     const monitorsWithChecks = await Promise.all(
       monitors.map(async (monitor) => {
-        const checks = await Check.find({ monitorId: monitor._id })
+        const checks = await Check.find({
+          monitorId: monitor._id,
+        })
           .select(["status", "responseTime", "createdAt"])
           .limit(25)
           .sort({ createdAt: -1 }) // newest first
@@ -72,58 +88,283 @@ class MonitorService implements IMonitorService {
       })
     );
     return monitorsWithChecks;
-  }
+  };
 
-  async get(monitorId: string) {
+  get = async (monitorId: string) => {
     const monitor = await Monitor.findById(monitorId);
     if (!monitor) {
       throw new ApiError("Monitor not found", 404);
     }
     return monitor;
+  };
+
+  private getStartDate(range: string): Date {
+    const now = new Date();
+    switch (range) {
+      case "30m":
+        return new Date(now.getTime() - 30 * 60 * 1000);
+      case "24h":
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      case "7d":
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case "30d":
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      default:
+        throw new ApiError("Invalid range parameter", 400);
+    }
   }
 
-  async getEmbedChecks(
+  private getDateFormat(range: string): string {
+    switch (range) {
+      case "30m":
+        return "%Y-%m-%dT%H:%M:00Z";
+      case "24h":
+      case "7d":
+        return "%Y-%m-%dT%H:00:00Z";
+      case "30d":
+        return "%Y-%m-%d";
+      default:
+        throw new ApiError("Invalid range parameter", 400);
+    }
+  }
+
+  private getBaseGroup = (dateFormat: string): Record<string, any> => {
+    return {
+      _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+      count: { $sum: 1 },
+      avgResponseTime: { $avg: "$responseTime" },
+    };
+  };
+
+  private getBaseProjection = (): object => {
+    return { status: 1, responseTime: 1, createdAt: 1 };
+  };
+
+  private getPageSpeedGroup = (dateFormat: string): Record<string, any> => {
+    return {
+      _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+      count: { $sum: 1 },
+      avgResponseTime: { $avg: "$responseTime" },
+      accessibility: { $avg: "$lighthouse.accessibility" },
+      bestPractices: { $avg: "$lighthouse.bestPractices" },
+      seo: { $avg: "$lighthouse.seo" },
+      performance: { $avg: "$lighthouse.performance" },
+      cls: { $avg: "$lighthouse.audits.cls.score" },
+      si: { $avg: "$lighthouse.audits.si.score" },
+      fcp: { $avg: "$lighthouse.audits.fcp.score" },
+      lcp: { $avg: "$lighthouse.audits.lcp.score" },
+      tbt: { $avg: "$lighthouse.audits.tbt.score" },
+    };
+  };
+
+  private getPageSpeedProjection = (): object => {
+    const projectStage: any = { status: 1, responseTime: 1, createdAt: 1 };
+    projectStage["lighthouse.accessibility"] = 1;
+    projectStage["lighthouse.seo"] = 1;
+    projectStage["lighthouse.bestPractices"] = 1;
+    projectStage["lighthouse.performance"] = 1;
+    projectStage["lighthouse.audits.cls.score"] = 1;
+    projectStage["lighthouse.audits.si.score"] = 1;
+    projectStage["lighthouse.audits.fcp.score"] = 1;
+    projectStage["lighthouse.audits.lcp.score"] = 1;
+    projectStage["lighthouse.audits.tbt.score"] = 1;
+    return projectStage;
+  };
+
+  private getInfraGroup = (dateFormat: string): Record<string, any> => {
+    return {
+      _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+      count: { $sum: 1 },
+      avgResponseTime: { $avg: "$responseTime" },
+      physicalCores: { $last: "$system.cpu.physical_core" },
+      logicalCores: { $last: "$system.cpu.logical_core" },
+      frequency: { $avg: "$system.cpu.frequency" },
+      currentFrequency: { $last: "$system.cpu.current_frequency" },
+      tempsArrays: { $push: "$system.cpu.temperature" },
+      freePercent: { $avg: "$system.cpu.free_percent" },
+      usedPercent: { $avg: "$system.cpu.usage_percent" },
+      total_bytes: { $last: "$system.memory.total_bytes" },
+      available_bytes: { $last: "$system.memory.available_bytes" },
+      used_bytes: { $last: "$system.memory.used_bytes" },
+      memory_usage_percent: { $avg: "$system.memory.usage_percent" },
+      disksArray: { $push: "$system.disk" },
+      os: { $last: "$system.host.os" },
+      platform: { $last: "$system.host.platform" },
+      kernel_version: { $last: "$system.host.kernel_version" },
+      pretty_name: { $last: "$system.host.pretty_name" },
+      netsArray: { $push: "$system.net" },
+    };
+  };
+
+  private getInfraProjection = (): object => {
+    const projectStage: any = { status: 1, responseTime: 1, createdAt: 1 };
+    projectStage["system.cpu.physical_core"] = 1;
+    projectStage["system.cpu.logical_core"] = 1;
+    projectStage["system.cpu.frequency"] = 1;
+    projectStage["system.cpu.current_frequency"] = 1;
+    projectStage["system.cpu.temperature"] = 1;
+    projectStage["system.cpu.free_percent"] = 1;
+    projectStage["system.cpu.usage_percent"] = 1;
+    projectStage["system.memory.total_bytes"] = 1;
+    projectStage["system.memory.available_bytes"] = 1;
+    projectStage["system.memory.used_bytes"] = 1;
+    projectStage["system.memory.usage_percent"] = 1;
+    projectStage["system.disk"] = 1;
+    projectStage["system.host.os"] = 1;
+    projectStage["system.host.platform"] = 1;
+    projectStage["system.host.kernel_version"] = 1;
+    projectStage["system.host.pretty_name"] = 1;
+    projectStage["system.net"] = 1;
+    return projectStage;
+  };
+
+  private getFinalProjection = (type: string): object => {
+    if (type === "pagespeed") {
+      return {
+        _id: 1,
+        count: 1,
+        avgResponseTime: 1,
+        accessibility: "$accessibility",
+        seo: "$seo",
+        bestPractices: "$bestPractices",
+        performance: "$performance",
+        cls: "$cls",
+        si: "$si",
+        fcp: "$fcp",
+        lcp: "$lcp",
+        tbt: "$tbt",
+      };
+    }
+
+    if (type === "infrastructure") {
+      return {
+        _id: 1,
+        count: 1,
+        avgResponseTime: 1,
+        cpu: {
+          physicalCores: "$physicalCores",
+          logicalCores: "$logicalCores",
+          frequency: "$frequency",
+          currentFrequency: "$currentFrequency",
+          temperatures: {
+            $map: {
+              input: {
+                $range: [0, { $size: { $arrayElemAt: ["$tempsArrays", 0] } }],
+              },
+              as: "idx",
+              in: {
+                $avg: {
+                  $map: {
+                    input: "$tempsArrays",
+                    as: "arr",
+                    in: { $arrayElemAt: ["$$arr", "$$idx"] },
+                  },
+                },
+              },
+            },
+          },
+          freePercent: "$freePercent",
+          usedPercent: "$usedPercent",
+        },
+        memory: {
+          total_bytes: "$total_bytes",
+          available_bytes: "$available_bytes",
+          used_bytes: "$used_bytes",
+          usage_percent: "$memory_usage_percent",
+        },
+        disks: {
+          $map: {
+            input: {
+              $range: [0, { $size: { $arrayElemAt: ["$disksArray", 0] } }],
+            },
+            as: "idx",
+            in: {
+              $let: {
+                vars: {
+                  diskGroup: {
+                    $map: {
+                      input: "$disksArray",
+                      as: "diskArr",
+                      in: { $arrayElemAt: ["$$diskArr", "$$idx"] },
+                    },
+                  },
+                },
+                in: {
+                  device: { $arrayElemAt: ["$$diskGroup.device", 0] },
+                  total_bytes: { $avg: "$$diskGroup.total_bytes" },
+                  free_bytes: { $avg: "$$diskGroup.free_bytes" },
+                  used_bytes: { $avg: "$$diskGroup.used_bytes" },
+                  usage_percent: { $avg: "$$diskGroup.usage_percent" },
+                  total_inodes: { $avg: "$$diskGroup.total_inodes" },
+                  free_inodes: { $avg: "$$diskGroup.free_inodes" },
+                  used_inodes: { $avg: "$$diskGroup.used_inodes" },
+                  inodes_usage_percent: {
+                    $avg: "$$diskGroup.inodes_usage_percent",
+                  },
+                  read_bytes: { $avg: "$$diskGroup.read_bytes" },
+                  write_bytes: { $avg: "$$diskGroup.write_bytes" },
+                  read_time: { $avg: "$$diskGroup.read_time" },
+                  write_time: { $avg: "$$diskGroup.write_time" },
+                },
+              },
+            },
+          },
+        },
+        host: {
+          os: "$os",
+          platform: "$platform",
+          kernel_version: "$kernel_version",
+          pretty_name: "$pretty_name",
+        },
+        net: {
+          $map: {
+            input: {
+              $range: [0, { $size: { $arrayElemAt: ["$netsArray", 0] } }],
+            },
+            as: "idx",
+            in: {
+              $let: {
+                vars: {
+                  netGroup: {
+                    $map: {
+                      input: "$netsArray",
+                      as: "netArr",
+                      in: { $arrayElemAt: ["$$netArr", "$$idx"] },
+                    },
+                  },
+                },
+                in: {
+                  name: { $arrayElemAt: ["$$netGroup.name", 0] },
+                  bytes_sent: { $avg: "$$netGroup.bytes_sent" },
+                  bytes_recv: { $avg: "$$netGroup.bytes_recv" },
+                  packets_sent: { $avg: "$$netGroup.packets_sent" },
+                  packets_recv: { $avg: "$$netGroup.packets_recv" },
+                  err_in: { $avg: "$$netGroup.err_in" },
+                  err_out: { $avg: "$$netGroup.err_out" },
+                  drop_in: { $avg: "$$netGroup.drop_in" },
+                  drop_out: { $avg: "$$netGroup.drop_out" },
+                  fifo_in: { $avg: "$$netGroup.fifo_in" },
+                  fifo_out: { $avg: "$$netGroup.fifo_out" },
+                },
+              },
+            },
+          },
+        },
+      };
+    }
+    return {};
+  };
+  getEmbedChecks = async (
     monitorId: string,
     range: string,
     status: string | undefined
-  ): Promise<MonitorWithChecksResponse> {
+  ): Promise<MonitorWithChecksResponse> => {
     const monitor = await Monitor.findById(monitorId);
     if (!monitor) {
       throw new ApiError("Monitor not found", 404);
     }
-    const now = new Date();
-    let startDate: Date;
-
-    let groupClause: {
-      _id: { [key: string]: any };
-      count: object;
-      avgResponseTime: object;
-    } = {
-      _id: { $dateToString: { format: "", date: "$createdAt" } },
-      count: { $sum: 1 },
-      avgResponseTime: { $avg: "$responseTime" },
-    };
-
-    switch (range) {
-      case "30m":
-        startDate = new Date(now.getTime() - 30 * 60 * 1000);
-        groupClause._id.$dateToString.format = "%Y-%m-%dT%H:%M:00Z";
-        break;
-      case "24h":
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        groupClause._id.$dateToString.format = "%Y-%m-%dT%H:00:00Z";
-        break;
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        groupClause._id.$dateToString.format = "%Y-%m-%dT%H:00:00Z";
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        groupClause._id.$dateToString.format = "%Y-%m-%d";
-        break;
-      default:
-        throw new ApiError("Invalid range parameter", 400);
-    }
+    const startDate = this.getStartDate(range);
+    const dateFormat = this.getDateFormat(range);
 
     // Build match stage
     const matchStage: {
@@ -139,13 +380,43 @@ class MonitorService implements IMonitorService {
       matchStage.status = status;
     }
 
+    let groupClause;
+
+    if (monitor.type === "pagespeed") {
+      groupClause = this.getPageSpeedGroup(dateFormat);
+    } else if (monitor.type === "infrastructure") {
+      groupClause = this.getInfraGroup(dateFormat);
+    } else {
+      groupClause = this.getBaseGroup(dateFormat);
+    }
+
+    let projectStage;
+    if (monitor.type === "pagespeed") {
+      projectStage = this.getPageSpeedProjection();
+    } else if (monitor.type === "infrastructure") {
+      projectStage = this.getInfraProjection();
+    } else {
+      projectStage = this.getBaseProjection();
+    }
+
+    let finalProjection = {};
+    if (monitor.type === "pagespeed" || monitor.type === "infrastructure") {
+      finalProjection = this.getFinalProjection(monitor.type);
+    } else {
+      finalProjection = { _id: 1, count: 1, avgResponseTime: 1 };
+    }
+
     const checks = await Check.aggregate([
       {
         $match: matchStage,
       },
-      { $project: { status: 1, responseTime: 1, createdAt: 1 } },
+      { $sort: { createdAt: 1 } },
+      { $project: projectStage },
       { $group: groupClause },
       { $sort: { _id: -1 } },
+      {
+        $project: finalProjection,
+      },
     ]);
 
     // Get monitor stats
@@ -162,7 +433,7 @@ class MonitorService implements IMonitorService {
       checks,
       stats: monitorStats,
     };
-  }
+  };
 
   async toggleActive(id: string, tokenizedUser: ITokenizedUser) {
     const pendingStatus: MonitorStatus = "initializing";

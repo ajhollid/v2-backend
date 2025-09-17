@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import ApiError from "../utils/ApiError.js";
 import MonitorService from "../services/business/MonitorService.js";
-
+import { MonitorType } from "../types/MonitorType.js";
 class MonitorController {
   private monitorService: MonitorService;
   constructor(monitorService: MonitorService) {
@@ -74,8 +74,13 @@ class MonitorController {
       if (req.query.embedChecks === "true") {
         const page = Math.max(1, Number(req.query.page) || 1);
         const limit = Math.max(1, Number(req.query.limit) || 10);
+        const type: MonitorType[] = req.query.type as MonitorType[];
 
-        monitors = await this.monitorService.getAllEmbedChecks(page, limit);
+        monitors = await this.monitorService.getAllEmbedChecks(
+          page,
+          limit,
+          type
+        );
       } else {
         monitors = await this.monitorService.getAll();
       }
