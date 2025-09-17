@@ -4,6 +4,7 @@ import MonitorStatsService from "./services/business/MonitorStatsService.js";
 import NetworkService from "./services/infrastructure/NetworkService.js";
 import StatusService from "./services/infrastructure/StatusService.js";
 import NotificationService from "./services/infrastructure/NotificationService.js";
+import MaintenanceService from "./services/business/MaintenanceService.js";
 import JobQueue, { IJobQueue } from "./services/infrastructure/JobQueue.js";
 import JobGenerator from "./services/infrastructure/JobGenerator.js";
 import initApp from "./app.js";
@@ -20,12 +21,14 @@ const startServer = async () => {
   const monitorStatsService = new MonitorStatsService();
   const statusService = new StatusService();
   const notificationService = new NotificationService();
+  const maintenanceService = new MaintenanceService();
   const jobGenerator = new JobGenerator(
     networkService,
     checkService,
     monitorStatsService,
     statusService,
-    notificationService
+    notificationService,
+    maintenanceService
   );
   jobQueue = await JobQueue.create(jobGenerator);
   const app = initApp(jobQueue);

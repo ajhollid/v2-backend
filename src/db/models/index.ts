@@ -27,3 +27,5 @@ export type { IMonitorStats } from "./monitors/MonitorStats.js";
 export { MonitorStats } from "./monitors/MonitorStats.js";
 export type { INotificationChannel } from "./notification-channel/NotificationChannel.js";
 export { NotificationChannel } from "./notification-channel/NotificationChannel.js";
+export type { IMaintenance } from "./maintenance/Maintenance.js";
+export { Maintenance } from "./maintenance/Maintenance.js";

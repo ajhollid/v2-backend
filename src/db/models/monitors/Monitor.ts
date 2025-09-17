@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import { Check } from "../index.js";
-import { required } from "joi";
 
 export const MonitorTypes = [
   "http",
