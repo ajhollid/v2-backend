@@ -9,6 +9,7 @@ import {
 import ApiError from "../../utils/ApiError.js";
 import { IJobQueue } from "../infrastructure/JobQueue.js";
 import { MonitorWithChecksResponse } from "../../types/index.js";
+import { MonitorStatus } from "../../db/models/monitors/Monitor.js";
 export interface IMonitorService {
   create: (
     tokenizedUser: ITokenizedUser,
@@ -164,12 +165,14 @@ class MonitorService implements IMonitorService {
   }
 
   async toggleActive(id: string, tokenizedUser: ITokenizedUser) {
+    const pendingStatus: MonitorStatus = "initializing";
     const updatedMonitor = await Monitor.findOneAndUpdate(
       { _id: id },
       [
         {
           $set: {
             isActive: { $not: "$isActive" },
+            status: pendingStatus,
             updatedBy: tokenizedUser.sub,
             updatedAt: new Date(),
           },
@@ -181,6 +184,8 @@ class MonitorService implements IMonitorService {
     if (!updatedMonitor) {
       throw new ApiError("Monitor not found", 404);
     }
+
+    await this.jobQueue.updateJob(updatedMonitor);
 
     if (updatedMonitor?.isActive) {
       await this.jobQueue.resumeJob(updatedMonitor);

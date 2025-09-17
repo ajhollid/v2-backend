@@ -5,6 +5,7 @@ export { Role } from "./auth/Role.js";
 export type { IRole } from "./auth/Role.js";
 export { connectDatabase, disconnectDatabase } from "../index.js";
 export { Monitor } from "./monitors/Monitor.js";
+export { MonitorStatuses } from "./monitors/Monitor.js";
 export type { IMonitor } from "./monitors/Monitor.js";
 export { Check } from "./monitors/Check.js";
 export type {
