@@ -6,6 +6,9 @@ import {
   Monitor,
   Check,
 } from "../../db/models/index.js";
+import ApiError from "../../utils/ApiError.js";
+import { Types } from "mongoose";
+
 const DEFAULT_ROLES = [
   {
     name: "SuperAdmin",
@@ -43,6 +46,7 @@ export type RegisterData = {
   firstName: string;
   lastName: string;
   password: string;
+  roles?: Types.ObjectId[]; // Optional roles for invite-based registration
 };
 
 export type LoginData = {
@@ -52,7 +56,15 @@ export type LoginData = {
 
 export type AuthResult = ITokenizedUser;
 
-class AuthService {
+export interface IAuthService {
+  register(signupData: RegisterData): Promise<ITokenizedUser>;
+  registerWithInvite(signupData: RegisterData): Promise<ITokenizedUser>;
+  login(loginData: LoginData): Promise<ITokenizedUser>;
+  cleanup(): Promise<void>;
+  cleanMonitors(): Promise<void>;
+}
+
+class AuthService implements IAuthService {
   async register(signupData: RegisterData): Promise<ITokenizedUser> {
     const userCount = await User.countDocuments();
 
@@ -86,11 +98,38 @@ class AuthService {
     });
 
     const savedUser = await user.save();
-
     return {
       sub: savedUser._id.toString(),
       roles: savedUser.roles.map((role) => role.toString()),
     };
+  }
+
+  async registerWithInvite(signupData: RegisterData): Promise<ITokenizedUser> {
+    const { email, firstName, lastName, password, roles } = signupData;
+
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    const user = new User({
+      email,
+      firstName,
+      lastName,
+      passwordHash,
+      roles: roles || [],
+    });
+    try {
+      const savedUser = await user.save();
+      return {
+        sub: savedUser._id.toString(),
+        roles: savedUser.roles.map((role) => role.toString()),
+      };
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        const dupError = new ApiError("Email already in use", 409);
+        dupError.stack = error?.stack;
+        throw dupError;
+      }
+      throw error;
+    }
   }
 
   async login(loginData: LoginData): Promise<ITokenizedUser> {

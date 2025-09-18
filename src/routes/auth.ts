@@ -17,6 +17,10 @@ class AuthRoutes {
 
   initRoutes = () => {
     this.router.post("/register", this.controller.register);
+    this.router.post(
+      "/register/invite/:token",
+      this.controller.registerWithInvite
+    );
     this.router.post("/login", this.controller.login);
     this.router.post("/logout", this.controller.logout);
     this.router.get("/me", verifyToken, this.controller.me);

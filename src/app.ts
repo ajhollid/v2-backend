@@ -43,11 +43,6 @@ const init = (jobQueue: IJobQueue) => {
     })
   );
 
-  const authService = new AuthService();
-  const authController = new AuthController(authService);
-  const authRouter = new AuthRoutes(authController);
-  v1ApiRouter.use("/auth", authRouter.getRouter());
-
   const monitorService = new MonitorService(jobQueue);
   const monitorController = new MonitorController(monitorService);
   const monitorRouter = new MonitorRoutes(monitorController);
@@ -79,6 +74,11 @@ const init = (jobQueue: IJobQueue) => {
   const inviteController = new InviteController(inviteService);
   const inviteRouter = new InviteRoutes(inviteController);
   v1ApiRouter.use("/invite", inviteRouter.getRouter());
+
+  const authService = new AuthService();
+  const authController = new AuthController(authService, inviteService);
+  const authRouter = new AuthRoutes(authController);
+  v1ApiRouter.use("/auth", authRouter.getRouter());
 
   app.use("/api/v1", v1ApiRouter);
   app.use(errorHandler);

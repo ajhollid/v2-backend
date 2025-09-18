@@ -1,11 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import { encode, decode } from "../utils/JWTUtils.js";
 import AuthService from "../services/business/AuthService.js";
+import ApiError from "../utils/ApiError.js";
+import InviteService from "../services/business/InviteService.js";
+import { IInvite } from "../db/models/index.js";
 
 class AuthController {
   private authService: AuthService;
-  constructor(authService: AuthService) {
+  private inviteService: InviteService;
+  constructor(authService: AuthService, inviteService: InviteService) {
     this.authService = authService;
+    this.inviteService = inviteService;
   }
 
   register = async (req: Request, res: Response, next: NextFunction) => {
@@ -35,8 +40,67 @@ class AuthController {
       });
 
       res.status(201).json({
-        message: "User and  created successfully",
+        message: "User created successfully",
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  registerWithInvite = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const token = req.params.token;
+      if (!token) {
+        throw new ApiError("Invite token is required", 400);
+      }
+
+      const invite: IInvite = await this.inviteService.get(token);
+
+      const { firstName, lastName, password } = req.body;
+      const email = invite?.email;
+      const roles = invite?.roles;
+
+      if (
+        !email ||
+        !firstName ||
+        !lastName ||
+        !password ||
+        !roles ||
+        roles.length === 0
+      ) {
+        throw new Error(
+          "Email, firstName, lastName, password, and roles are required"
+        );
+      }
+
+      const result = await this.authService.registerWithInvite({
+        email,
+        firstName,
+        lastName,
+        password,
+        roles,
+      });
+
+      if (!result) {
+        throw new Error("Registration failed");
+      }
+
+      await this.inviteService.delete(invite._id.toString());
+
+      const jwt = encode(result);
+
+      res.cookie("token", jwt, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      });
+
+      res.status(201).json({ message: "User created successfully" });
     } catch (error) {
       next(error);
     }
@@ -52,6 +116,7 @@ class AuthController {
           .json({ message: "Email and password are required" });
       }
       const result = await this.authService.login({ email, password });
+
       const token = encode(result);
 
       res.cookie("token", token, {
