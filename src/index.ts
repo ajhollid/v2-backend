@@ -5,6 +5,7 @@ import NetworkService from "./services/infrastructure/NetworkService.js";
 import StatusService from "./services/infrastructure/StatusService.js";
 import NotificationService from "./services/infrastructure/NotificationService.js";
 import MaintenanceService from "./services/business/MaintenanceService.js";
+import UserService from "./services/business/UserService.js";
 import JobQueue, { IJobQueue } from "./services/infrastructure/JobQueue.js";
 import JobGenerator from "./services/infrastructure/JobGenerator.js";
 import initApp from "./app.js";
@@ -20,7 +21,8 @@ const startServer = async () => {
   const checkService = new CheckService();
   const monitorStatsService = new MonitorStatsService();
   const statusService = new StatusService();
-  const notificationService = new NotificationService();
+  const userService = new UserService();
+  const notificationService = new NotificationService(userService);
   const maintenanceService = new MaintenanceService();
   const jobGenerator = new JobGenerator(
     networkService,

@@ -1,3 +1,4 @@
+import UserService from "../business/UserService.js";
 import { IMonitor, NotificationChannel } from "../../db/models/index.js";
 import {
   EmailService,
@@ -14,9 +15,11 @@ class NotificationService implements INotificationService {
   private slackService: SlackService;
   private discordService: DiscordService;
   private webhookService: WebhookService;
+  private userService: UserService;
 
-  constructor() {
-    this.emailService = new EmailService();
+  constructor(userService: UserService) {
+    this.userService = userService;
+    this.emailService = new EmailService(userService);
     this.slackService = new SlackService();
     this.discordService = new DiscordService();
     this.webhookService = new WebhookService();
