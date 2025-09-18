@@ -1,4 +1,4 @@
-import { IMonitor } from "../../../db/models/index.js";
+import { IMonitor, INotificationChannel } from "../../../db/models/index.js";
 import { IMessageService } from "./IMessageService.js";
 import nodemailer, { Transporter } from "nodemailer";
 import { config } from "../../../config/index.js";
@@ -6,6 +6,7 @@ import UserService from "../../business/UserService.js";
 class EmailService implements IMessageService {
   private transporter: Transporter;
   private userService: UserService;
+
   constructor(userService: UserService) {
     this.userService = userService;
     this.transporter = nodemailer.createTransport({
@@ -23,7 +24,7 @@ class EmailService implements IMessageService {
     return `Email notification for monitor: ${monitor._id}`;
   };
 
-  sendMessage = async (message: string) => {
+  sendMessage = async (message: string, channel: INotificationChannel) => {
     try {
       const users = await this.userService.getAllUsers();
       const emails = users.map((u) => u.email).join(",");

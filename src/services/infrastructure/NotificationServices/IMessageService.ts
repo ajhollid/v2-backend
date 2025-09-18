@@ -1,7 +1,10 @@
-import { IMonitor } from "../../../db/models/index.js";
+import { IMonitor, INotificationChannel } from "../../../db/models/index.js";
 
 export interface IMessageService {
   buildMessage: (monitor: IMonitor) => string;
-  sendMessage: (message: string) => Promise<boolean>;
+  sendMessage: (
+    message: string,
+    channel: INotificationChannel
+  ) => Promise<boolean>;
   testMessage: (monitor: IMonitor, message: string) => Promise<boolean>;
 }
