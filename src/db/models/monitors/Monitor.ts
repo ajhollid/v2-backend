@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import { Check } from "../index.js";
+import { Check, MonitorStats } from "../index.js";
 
 export const MonitorTypes = [
   "http",
@@ -85,6 +85,7 @@ MonitorSchema.pre(
     try {
       const monitorId = this._id;
       await Check.deleteMany({ monitorId });
+      await MonitorStats.deleteMany({ monitorId });
       next();
     } catch (error: any) {
       next(error);

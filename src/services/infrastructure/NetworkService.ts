@@ -1,4 +1,4 @@
-import { Got } from "got";
+import { Got, HTTPError } from "got";
 import ping from "ping";
 import { IMonitor } from "../../db/models/index.js";
 import { GotTimings } from "../../db/models/monitors/Check.js";
@@ -52,38 +52,39 @@ class NetworkService implements INetworkService {
 
   private buildStatusResponse = <T>(
     monitor: IMonitor,
-    response: Response<T>
+    response: Response<T> | null,
+    error: any | null
   ): StatusResponse<T> => {
-    try {
-      const statusResponse: StatusResponse<T> = {
-        monitorId: monitor._id.toString(),
-        type: monitor.type,
-        code: response.statusCode,
-        status: response.ok === true ? "up" : "down",
-        message: response.statusMessage || "",
-        responseTime: response.timings.phases.total || 0,
-        timings: response.timings,
-      };
-
-      return statusResponse;
-    } catch (error: any) {
+    if (error) {
       const statusResponse: StatusResponse<T> = {
         monitorId: monitor._id.toString(),
         type: monitor.type,
         status: "down" as MonitorStatus,
         code: this.NETWORK_ERROR,
         message: error.message || "Network error",
-        responseTime: error.timings?.phases?.total || 0,
-        timings: error.timings || ({ phases: {} } as GotTimings),
+        responseTime: 0,
+        timings: { phases: {} } as GotTimings,
       };
-      if (error.name === "HTTPError" || error.name === "RequestError") {
+      if (error instanceof HTTPError) {
         statusResponse.code = error?.response?.statusCode || this.NETWORK_ERROR;
-        statusResponse.message = error.response?.statusCode || error.message;
+        statusResponse.message = error.message || "HTTP error";
         statusResponse.responseTime = error.timings?.phases?.total || 0;
         statusResponse.timings = error.timings;
       }
       return statusResponse;
     }
+
+    const statusResponse: StatusResponse<T> = {
+      monitorId: monitor._id.toString(),
+      type: monitor.type,
+      code: response?.statusCode || this.NETWORK_ERROR,
+      status: response?.ok === true ? "up" : "down",
+      message: response?.statusMessage || "",
+      responseTime: response?.timings?.phases?.total || 0,
+      timings: response?.timings || ({ phases: {} } as GotTimings),
+    };
+
+    return statusResponse;
   };
 
   requestHttp = async (monitor: IMonitor) => {
@@ -93,8 +94,12 @@ class NetworkService implements INetworkService {
         throw new Error("No URL provided");
       }
 
-      const response: Response = await this.got(url);
-      return this.buildStatusResponse(monitor, response);
+      try {
+        const response: Response = await this.got(url);
+        return this.buildStatusResponse(monitor, response, null);
+      } catch (error) {
+        return this.buildStatusResponse(monitor, null, error);
+      }
     } catch (error) {
       throw error;
     }
@@ -110,22 +115,26 @@ class NetworkService implements INetworkService {
       throw new Error("No secret provided for infrastructure monitor");
     }
 
-    const response: Response<ICapturePayload> = await this.got(url, {
-      headers: { Authorization: `Bearer ${secret}` },
-      responseType: "json",
-    });
+    let statusResponse: StatusResponse<ICapturePayload>;
+    try {
+      const response: Response<ICapturePayload> | null = await this.got(url, {
+        headers: { Authorization: `Bearer ${secret}` },
+        responseType: "json",
+      });
 
-    const statusResponse = this.buildStatusResponse(monitor, response);
-    const payload = response.body;
-    if (payload) {
-      statusResponse.payload = payload;
+      statusResponse = this.buildStatusResponse(monitor, response, null);
+      if (!response?.body) {
+        throw new ApiError(
+          "No payload received from infrastructure monitor",
+          500
+        );
+      }
+      statusResponse.payload = response?.body;
       return statusResponse;
-    } else {
-      throw new ApiError(
-        "No payload received from infrastructure monitor",
-        500
-      );
+    } catch (error) {
+      statusResponse = this.buildStatusResponse(monitor, null, error);
     }
+    return statusResponse;
   };
 
   requestPagespeed = async (monitor: IMonitor) => {
@@ -138,11 +147,18 @@ class NetworkService implements INetworkService {
       throw new Error("No URL provided");
     }
 
-    const response: Response = await this.got(url);
-    const statusResponse = this.buildStatusResponse(
-      monitor,
-      response
-    ) as StatusResponse<ILighthousePayload>;
+    let statusResponse: StatusResponse<ILighthousePayload>;
+
+    try {
+      const response: Response = await this.got(url);
+      statusResponse = this.buildStatusResponse(
+        monitor,
+        response,
+        null
+      ) as StatusResponse<ILighthousePayload>;
+    } catch (error) {
+      statusResponse = this.buildStatusResponse(monitor, null, error);
+    }
 
     const pagespeedUrl = `https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url}&category=seo&category=accessibility&category=best-practices&category=performance&key=${apiKey}`;
     const pagespeedResponse = await this.got<ILighthousePayload>(pagespeedUrl, {
@@ -174,18 +190,19 @@ class NetworkService implements INetworkService {
   requestStatus = async (monitor: IMonitor) => {
     switch (monitor?.type) {
       case "http":
-        return await this.requestHttp(monitor);
+        return await this.requestHttp(monitor); // uses GOT
       case "https":
-        return await this.requestHttp(monitor);
+        return await this.requestHttp(monitor); // uses GOT
       case "infrastructure":
-        return await this.requestInfrastructure(monitor);
+        return await this.requestInfrastructure(monitor); // uses GOT
       case "pagespeed":
-        return await this.requestPagespeed(monitor);
+        return await this.requestPagespeed(monitor); // uses GOT
       case "ping":
-        return await this.requestPing(monitor);
+        return await this.requestPing(monitor); // uses PING
       default:
         throw new Error("Not implemented");
     }
   };
 }
+
 export default NetworkService;
