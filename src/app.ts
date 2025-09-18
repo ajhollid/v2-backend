@@ -21,6 +21,10 @@ import MaintenanceRoutes from "./routes/maintenance..js";
 import MaintenanceController from "./controllers/MaintenanceController.js";
 import MaintenanceService from "./services/business/MaintenanceService.js";
 
+import InviteRoutes from "./routes/invite.js";
+import InviteController from "./controllers/InviteController.js";
+import InviteService from "./services/business/InviteService.js";
+
 import { errorHandler } from "./middleware/ErrorHandler.js";
 import { IJobQueue } from "./services/infrastructure/JobQueue.js";
 
@@ -70,6 +74,11 @@ const init = (jobQueue: IJobQueue) => {
   const maintenanceController = new MaintenanceController(maintenanceService);
   const maintenanceRouter = new MaintenanceRoutes(maintenanceController);
   v1ApiRouter.use("/maintenance", maintenanceRouter.getRouter());
+
+  const inviteService = new InviteService();
+  const inviteController = new InviteController(inviteService);
+  const inviteRouter = new InviteRoutes(inviteController);
+  v1ApiRouter.use("/invite", inviteRouter.getRouter());
 
   app.use("/api/v1", v1ApiRouter);
   app.use(errorHandler);

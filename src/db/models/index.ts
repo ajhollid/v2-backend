@@ -29,3 +29,5 @@ export type { INotificationChannel } from "./notification-channel/NotificationCh
 export { NotificationChannel } from "./notification-channel/NotificationChannel.js";
 export type { IMaintenance } from "./maintenance/Maintenance.js";
 export { Maintenance } from "./maintenance/Maintenance.js";
+export type { IInvite } from "./invite/Invite.js";
+export { Invite } from "./invite/Invite.js";

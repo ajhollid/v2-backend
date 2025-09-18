@@ -288,7 +288,7 @@ const CheckSchema = new Schema<ICheck>(
     expiry: {
       type: Date,
       default: Date.now,
-      expires: 60 * 60 * 24 * 30, // <-- this creates an index automatically
+      expires: 60 * 60 * 24 * 30,
     },
   },
   { timestamps: true }
