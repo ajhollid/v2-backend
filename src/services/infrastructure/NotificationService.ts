@@ -52,7 +52,8 @@ class NotificationService implements INotificationService {
           break;
         case "discord":
           await this.discordService.sendMessage(
-            this.discordService.buildMessage(monitor)
+            this.discordService.buildMessage(monitor),
+            channel
           );
           break;
         case "webhook":

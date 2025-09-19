@@ -5,6 +5,7 @@ export interface IAlert {
   name: string;
   url: string;
   status: string;
+  details?: Record<string, string>;
   checkTime: Date | null;
   alertTime: Date;
 }
