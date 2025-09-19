@@ -38,6 +38,7 @@ class StatusService implements IStatusService {
   ): Promise<StatusChangeResult> => {
     const { n, m, lastStatuses } = monitor;
     const newStatus = statusResponse.status;
+    monitor.lastCheckedAt = new Date();
     monitor.lastStatuses.push(newStatus);
     while (monitor.lastStatuses.length > m) {
       monitor.lastStatuses.shift();
