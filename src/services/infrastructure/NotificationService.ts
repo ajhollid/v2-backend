@@ -47,7 +47,8 @@ class NotificationService implements INotificationService {
           break;
         case "slack":
           await this.slackService.sendMessage(
-            this.slackService.buildMessage(monitor)
+            this.slackService.buildMessage(monitor),
+            channel
           );
           break;
         case "discord":
