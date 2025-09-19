@@ -2,6 +2,7 @@ import {
   ITokenizedUser,
   INotificationChannel,
   NotificationChannel,
+  Monitor,
 } from "../../db/models/index.js";
 import ApiError from "../../utils/ApiError.js";
 
@@ -113,6 +114,11 @@ class NotificationChannelService implements INotificationChannelService {
     if (!result.deletedCount) {
       throw new ApiError("Notification channel not found", 404);
     }
+
+    await Monitor.updateMany(
+      { notificationChannels: id },
+      { $pull: { notificationChannels: id } }
+    );
     return result.deletedCount === 1;
   };
 }

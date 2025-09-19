@@ -5,6 +5,7 @@ import { IMonitorStatsService } from "../business/MonitorStatsService.js";
 import { IStatusService } from "./StatusService.js";
 import { INotificationService } from "./NotificationService.js";
 import { IMaintenanceService } from "../business/MaintenanceService.js";
+import { IMonitorService } from "../business/MonitorService.js";
 import ApiError from "../../utils/ApiError.js";
 
 export interface IJobGenerator {
