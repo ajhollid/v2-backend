@@ -42,24 +42,25 @@ class NotificationService implements INotificationService {
       switch (channel.type) {
         case "email":
           await this.emailService.sendMessage(
-            this.emailService.buildMessage(monitor)
+            this.emailService.buildAlert(monitor),
+            channel
           );
           break;
         case "slack":
           await this.slackService.sendMessage(
-            this.slackService.buildMessage(monitor),
+            this.slackService.buildAlert(monitor),
             channel
           );
           break;
         case "discord":
           await this.discordService.sendMessage(
-            this.discordService.buildMessage(monitor),
+            this.discordService.buildAlert(monitor),
             channel
           );
           break;
         case "webhook":
           await this.webhookService.sendMessage(
-            this.webhookService.buildMessage(monitor),
+            this.webhookService.buildAlert(monitor),
             channel
           );
           break;

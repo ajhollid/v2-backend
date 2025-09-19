@@ -75,7 +75,7 @@ class SlackService implements IMessageService {
     ];
   };
 
-  buildMessage = (monitor: IMonitor) => {
+  buildAlert = (monitor: IMonitor) => {
     const name = monitor?.name || "Unnamed monitor";
     const monitorStatus = monitor?.status || "unknown status";
     const url = monitor?.url || "no URL";
@@ -90,14 +90,7 @@ class SlackService implements IMessageService {
     };
   };
 
-  sendMessage = async (
-    message: string | IAlert,
-    channel: INotificationChannel
-  ) => {
-    if (typeof message === "string") {
-      throw new Error("Invalid message format for Slack");
-    }
-
+  sendMessage = async (alert: IAlert, channel: INotificationChannel) => {
     const notificationUrl = channel?.config?.url;
     if (!notificationUrl) {
       throw new Error("Webhook URL not configured");
@@ -106,7 +99,7 @@ class SlackService implements IMessageService {
     try {
       const payload = {
         text: "Status Alert",
-        blocks: this.toSlackBlocks(message),
+        blocks: this.toSlackBlocks(alert),
       };
       await got.post(notificationUrl, { json: payload });
     } catch (error) {

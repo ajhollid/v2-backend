@@ -10,13 +10,13 @@ export interface IAlert {
   alertTime: Date;
 }
 export interface IMessageService {
-  buildMessage: (monitor: IMonitor) => string | IAlert;
+  buildAlert: (monitor: IMonitor) => IAlert;
   sendMessage: (
-    message: string | IAlert,
+    alert: IAlert,
     channel: INotificationChannel
   ) => Promise<boolean>;
   testMessage: (
-    monitor: IMonitor,
-    message: string | IAlert
+    message: string,
+    channel: INotificationChannel
   ) => Promise<boolean>;
 }

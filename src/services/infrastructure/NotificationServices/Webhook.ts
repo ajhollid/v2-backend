@@ -5,7 +5,7 @@ import got from "got";
 class WebhookService implements IMessageService {
   constructor() {}
 
-  buildMessage = (monitor: IMonitor) => {
+  buildAlert = (monitor: IMonitor) => {
     const name = monitor?.name || "Unnamed monitor";
     const monitorStatus = monitor?.status || "unknown status";
     const url = monitor?.url || "no URL";
@@ -20,21 +20,13 @@ class WebhookService implements IMessageService {
     };
   };
 
-  sendMessage = async (
-    message: string | IAlert,
-    channel: INotificationChannel
-  ) => {
+  sendMessage = async (alert: IAlert, channel: INotificationChannel) => {
     const notificationUrl = channel?.config?.url;
     if (!notificationUrl) {
       throw new ApiError("Webhook URL not configured", 400);
     }
-
-    if (typeof message === "string") {
-      throw new ApiError("Invalid message format for webhook", 400);
-    }
-
     try {
-      await got.post(notificationUrl, { json: { ...message } });
+      await got.post(notificationUrl, { json: { ...alert } });
     } catch (error) {
       console.warn("Failed to send webhook notification:", error);
       return false;

@@ -30,7 +30,7 @@ class DiscordService implements IMessageService {
     };
   };
 
-  buildMessage = (monitor: IMonitor) => {
+  buildAlert = (monitor: IMonitor) => {
     const name = monitor?.name || "Unnamed monitor";
     const monitorStatus = monitor?.status || "unknown status";
     const url = monitor?.url || "no URL";
@@ -45,26 +45,16 @@ class DiscordService implements IMessageService {
     };
   };
 
-  sendMessage = async (
-    message: string | IAlert,
-    channel: INotificationChannel
-  ) => {
+  sendMessage = async (alert: IAlert, channel: INotificationChannel) => {
     const notificationUrl = channel?.config?.url;
     if (!notificationUrl) {
       throw new ApiError("Webhook URL not configured", 400);
     }
 
     try {
-      if (typeof message === "string") {
-        await got.post(notificationUrl, {
-          json: { content: message },
-        });
-        return true;
-      }
-
       const payload = {
         content: "Status Alert",
-        embeds: [this.toDiscordEmbeds(message)],
+        embeds: [this.toDiscordEmbeds(alert)],
       };
       await got.post(notificationUrl, { json: payload });
     } catch (error) {
