@@ -32,7 +32,13 @@ class WebhookService implements IMessageService {
     if (typeof message === "string") {
       throw new ApiError("Invalid message format for webhook", 400);
     }
-    await got.post(notificationUrl, { json: { ...message } });
+
+    try {
+      await got.post(notificationUrl, { json: { ...message } });
+    } catch (error) {
+      console.warn("Failed to send webhook notification:", error);
+      return false;
+    }
 
     return true;
   };
