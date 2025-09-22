@@ -75,7 +75,7 @@ const init = (jobQueue: IJobQueue) => {
   const inviteRouter = new InviteRoutes(inviteController);
   v1ApiRouter.use("/invite", inviteRouter.getRouter());
 
-  const authService = new AuthService();
+  const authService = new AuthService(jobQueue);
   const authController = new AuthController(authService, inviteService);
   const authRouter = new AuthRoutes(authController);
   v1ApiRouter.use("/auth", authRouter.getRouter());

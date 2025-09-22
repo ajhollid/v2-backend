@@ -57,6 +57,7 @@ class MonitorService implements IMonitorService {
     });
     await MonitorStats.create({
       monitorId: monitor._id,
+      currentStreakStartedAt: Date.now(),
     });
     await this.jobQueue.addJob(monitor);
     return monitor;
@@ -75,18 +76,7 @@ class MonitorService implements IMonitorService {
     let find = {};
     if (type.length > 0) find = { type: { $in: type } };
     const monitors = await Monitor.find(find).skip(skip).limit(limit);
-    const monitorsWithChecks = await Promise.all(
-      monitors.map(async (monitor) => {
-        const checks = await Check.find({
-          monitorId: monitor._id,
-        })
-          .limit(25)
-          .sort({ createdAt: -1 }) // newest first
-          .lean();
-        return { ...monitor.toObject(), checks };
-      })
-    );
-    return monitorsWithChecks;
+    return monitors;
   };
 
   get = async (monitorId: string) => {
@@ -353,6 +343,7 @@ class MonitorService implements IMonitorService {
     }
     return {};
   };
+
   getEmbedChecks = async (
     monitorId: string,
     range: string,

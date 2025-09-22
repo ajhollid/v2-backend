@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
+import { MonitorStatus, MonitorStatuses } from "./Monitor.js";
 
 export interface IMonitorStats extends mongoose.Document {
   monitorId: mongoose.Types.ObjectId;
@@ -11,6 +12,9 @@ export interface IMonitorStats extends mongoose.Document {
   lastCheckTimestamp: number;
   lastResponseTime: number;
   timeOfLastFailure: number;
+  currentStreak: number;
+  currentStreakStatus: MonitorStatus;
+  currentStreakStartedAt: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +63,13 @@ const MonitorStatsSchema = new Schema<IMonitorStats>(
       type: Number,
       default: 0,
     },
+    currentStreak: { type: Number, required: false, default: 0 },
+    currentStreakStatus: {
+      type: String,
+      required: false,
+      enum: MonitorStatuses,
+    },
+    currentStreakStartedAt: { type: Number, required: false },
   },
   { timestamps: true }
 );

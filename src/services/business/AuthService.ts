@@ -5,9 +5,11 @@ import {
   ITokenizedUser,
   Monitor,
   Check,
+  NotificationChannel,
 } from "../../db/models/index.js";
 import ApiError from "../../utils/ApiError.js";
 import { Types } from "mongoose";
+import { IJobQueue } from "../infrastructure/JobQueue.js";
 
 const DEFAULT_ROLES = [
   {
@@ -65,6 +67,11 @@ export interface IAuthService {
 }
 
 class AuthService implements IAuthService {
+  private jobQueue: IJobQueue;
+  constructor(jobQueue: IJobQueue) {
+    this.jobQueue = jobQueue;
+  }
+
   async register(signupData: RegisterData): Promise<ITokenizedUser> {
     const userCount = await User.countDocuments();
 
@@ -159,6 +166,8 @@ class AuthService implements IAuthService {
     await Role.deleteMany({});
     await Monitor.deleteMany({});
     await Check.deleteMany({});
+    await NotificationChannel.deleteMany({});
+    await this.jobQueue.flush();
   }
 
   async cleanMonitors() {

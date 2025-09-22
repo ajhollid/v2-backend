@@ -27,9 +27,12 @@ export interface IMonitor extends Document {
   isActive: boolean;
   status: MonitorStatus;
   n: number; // Number of consecutive successes required to change status
-  m: number; // Length of the array
-  lastStatuses: string[]; // Array to store last few statuses
   lastCheckedAt?: Date;
+  latestChecks: {
+    status: MonitorStatus;
+    responseTime: number;
+    checkedAt: Date;
+  }[];
   notificationChannels?: Types.ObjectId[];
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId;
@@ -56,14 +59,21 @@ const MonitorSchema = new Schema<IMonitor>(
       enum: MonitorStatuses,
     },
     n: { type: Number, required: true, default: 1 },
-    m: { type: Number, required: true, default: 2 },
-    lastStatuses: {
-      type: [String],
-      enum: MonitorStatuses,
-      default: [],
-      maxLength: 10,
-    },
     lastCheckedAt: { type: Date },
+    latestChecks: {
+      type: [
+        {
+          status: {
+            type: String,
+            required: true,
+            enum: MonitorStatuses,
+          },
+          responseTime: { type: Number, required: true },
+          checkedAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+    },
     notificationChannels: [
       {
         type: Schema.Types.ObjectId,
@@ -72,6 +82,7 @@ const MonitorSchema = new Schema<IMonitor>(
         default: [],
       },
     ],
+
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },

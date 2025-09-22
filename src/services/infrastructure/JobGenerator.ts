@@ -62,7 +62,11 @@ class JobGenerator implements IJobGenerator {
         if (statusChanged) {
           await this.notificationService.handleNotifications(updatedMonitor);
         }
-        await this.statusService.updateMonitorStats(updatedMonitor, status);
+        await this.statusService.updateMonitorStats(
+          updatedMonitor,
+          status,
+          statusChanged
+        );
       } catch (error) {
         throw error;
       }

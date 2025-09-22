@@ -1,7 +1,3 @@
-//********************************
-// This service handles updating monitor status
-//********************************
-
 import {
   IMonitor,
   IMonitorStats,
@@ -9,6 +5,8 @@ import {
 } from "../../db/models/index.js";
 import { StatusResponse } from "./NetworkService.js";
 import ApiError from "../../utils/ApiError.js";
+
+const MAX_LATEST_CHECKS = 25;
 export interface IStatusService {
   updateMonitorStatus: (
     monitor: IMonitor,
@@ -22,7 +20,8 @@ export interface IStatusService {
 
   updateMonitorStats: (
     monitor: IMonitor,
-    status: StatusResponse
+    status: StatusResponse,
+    statusChanged: boolean
   ) => Promise<IMonitorStats | null>;
 }
 
@@ -36,27 +35,35 @@ class StatusService implements IStatusService {
     monitor: IMonitor,
     statusResponse: StatusResponse
   ): Promise<StatusChangeResult> => {
-    const { n, m, lastStatuses } = monitor;
     const newStatus = statusResponse.status;
     monitor.lastCheckedAt = new Date();
-    monitor.lastStatuses.push(newStatus);
-    while (monitor.lastStatuses.length > m) {
-      monitor.lastStatuses.shift();
+
+    // Store latest checks for display
+    monitor.latestChecks = monitor.latestChecks || [];
+    monitor.latestChecks.push({
+      status: newStatus,
+      responseTime: statusResponse.responseTime,
+      checkedAt: monitor.lastCheckedAt,
+    });
+    while (monitor.latestChecks.length > MAX_LATEST_CHECKS) {
+      monitor.latestChecks.shift();
     }
 
+    // Update monitor status
     if (monitor.status === "initializing") {
       monitor.status = newStatus;
       return [await monitor.save(), true];
     } else {
-      const mostRecentStatuses = monitor.lastStatuses.slice(-n);
+      const { n } = monitor;
+      const latestChecks = monitor.latestChecks.slice(-n);
       // Return early if not enough statuses to evaluate
-      if (mostRecentStatuses.length < n) {
+      if (latestChecks.length < n) {
         return [await monitor.save(), false];
       }
 
       // If all different than current status, update status
-      const allDifferent = mostRecentStatuses.every(
-        (status) => status !== monitor.status
+      const allDifferent = latestChecks.every(
+        (check) => check.status !== monitor.status
       );
       if (allDifferent && monitor.status !== newStatus) {
         monitor.status = newStatus;
@@ -84,7 +91,8 @@ class StatusService implements IStatusService {
 
   updateMonitorStats = async (
     monitor: IMonitor,
-    statusResponse: StatusResponse
+    statusResponse: StatusResponse,
+    statusChanged: boolean
   ) => {
     const stats = await MonitorStats.findOne({ monitorId: monitor._id });
     if (!stats) {
@@ -95,6 +103,15 @@ class StatusService implements IStatusService {
     stats.totalChecks += 1;
     stats.totalUpChecks += statusResponse.status === "up" ? 1 : 0;
     stats.totalDownChecks += statusResponse.status === "down" ? 1 : 0;
+
+    // Update streak
+    if (!statusChanged) {
+      stats.currentStreak += 1;
+    } else {
+      stats.currentStreak = 1;
+      stats.currentStreakStatus = statusResponse.status;
+      stats.currentStreakStartedAt = Date.now();
+    }
 
     // Update time stamps
     stats.lastCheckTimestamp = Date.now();
